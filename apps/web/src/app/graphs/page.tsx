@@ -223,7 +223,7 @@ export default function GraphsPage() {
                       ["updated", "Updated", "text-left"],
                     ] as const
                   ).map(([key, label, align]) => (
-                    <th key={key} className={`px-3 py-2.5 font-medium ${align}`}>
+                    <th key={key} className={`px-3 py-2.5 font-medium ${align} ${key === "name" ? "w-1/2" : ""}`}>
                       <button onClick={() => setSort(key)} className={`inline-flex items-center gap-1 hover:text-fg ${sort === key ? "text-fg" : ""}`}>
                         {label} <ArrowUpDown size={11} className={sort === key ? "opacity-100" : "opacity-30"} />
                       </button>
