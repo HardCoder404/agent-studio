@@ -1,4 +1,4 @@
-import type { Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphStats, MCPServerBody, MCPServerInfo, Sweep, SweepSummary, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
+import type { Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphStats, MCPServerBody, MCPServerInfo, Sweep, SweepSummary, TemplateInfo, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const WS_URL = API_URL.replace(/^http/, "ws");
@@ -23,7 +23,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export type GraphBody = { name: string; nodes: SpecNode[]; edges: SpecEdge[] };
+export type GraphBody = { name: string; description?: string; nodes: SpecNode[]; edges: SpecEdge[] };
 
 export const api = {
   listGraphs: () => request<GraphSummary[]>("/graphs"),
@@ -32,6 +32,13 @@ export const api = {
   updateGraph: (id: string, body: GraphBody) =>
     request<GraphSpec>(`/graphs/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteGraph: (id: string) => request<void>(`/graphs/${id}`, { method: "DELETE" }),
+  listTemplates: () => request<TemplateInfo[]>("/templates"),
+  fromTemplate: (slug: string) => request<GraphSpec>(`/graphs/from-template/${slug}`, { method: "POST" }),
+  duplicateGraph: (id: string) => request<GraphSpec>(`/graphs/${id}/duplicate`, { method: "POST" }),
+  shareGraph: (id: string) => request<{ token: string }>(`/graphs/${id}/share`, { method: "POST" }),
+  unshareGraph: (id: string) => request<void>(`/graphs/${id}/share`, { method: "DELETE" }),
+  getShared: (token: string) => request<GraphSpec & { shared: true }>(`/share/${token}`),
+  forkShared: (token: string) => request<GraphSpec>(`/share/${token}/fork`, { method: "POST" }),
   listModels: () => request<ModelInfo[]>("/models"),
   createRun: (graph_id: string, input: Record<string, unknown>) =>
     request<RunInfo>("/runs", { method: "POST", body: JSON.stringify({ graph_id, input }) }),

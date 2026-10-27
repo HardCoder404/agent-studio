@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.engine import checkpointer
 from app.engine.mcp import manager as mcp_manager
-from app.routers import evals, graphs, mcp, models, runs, stats, tools, ws
+from app.routers import evals, graphs, mcp, models, runs, stats, templates, tools, ws
 from app.settings import settings
 
 
@@ -36,6 +36,7 @@ app.include_router(evals.datasets)
 app.include_router(evals.evals)
 app.include_router(stats.router)
 app.include_router(mcp.router)
+app.include_router(templates.router)
 
 
 @app.get("/health")

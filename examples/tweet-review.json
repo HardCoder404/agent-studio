@@ -1,9 +1,23 @@
 {
   "name": "Tweet writer with human review",
   "nodes": [
-    { "id": "start", "type": "start", "label": "Start", "position": { "x": 0, "y": 0 } },
     {
-      "id": "write", "type": "llm", "label": "Write draft", "position": { "x": 0, "y": 140 },
+      "id": "start",
+      "type": "start",
+      "label": "Start",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "write",
+      "type": "llm",
+      "label": "Write draft",
+      "position": {
+        "x": 0,
+        "y": 140
+      },
       "config": {
         "model": "groq/openai/gpt-oss-20b",
         "system_prompt": "You write sharp, honest tweets for software engineers.",
@@ -12,35 +26,101 @@
       }
     },
     {
-      "id": "review", "type": "human", "label": "Human review", "position": { "x": 0, "y": 280 },
-      "config": { "question": "Approve this draft? (yes/no)", "show_keys": ["draft"], "output_key": "decision" }
+      "id": "review",
+      "type": "human",
+      "label": "Human review",
+      "position": {
+        "x": 0,
+        "y": 280
+      },
+      "config": {
+        "question": "Approve this draft? (yes/no)",
+        "show_keys": [
+          "draft"
+        ],
+        "output_key": "decision"
+      }
     },
     {
-      "id": "route", "type": "router", "label": "Approved?", "position": { "x": 0, "y": 420 },
+      "id": "route",
+      "type": "router",
+      "label": "Approved?",
+      "position": {
+        "x": 0,
+        "y": 420
+      },
       "config": {
-        "mode": "rule", "input_key": "decision",
+        "mode": "rule",
+        "input_key": "decision",
         "branches": [
-          { "label": "yes", "when": "decision == 'yes'" },
-          { "label": "no", "when": "decision != 'yes'" }
+          {
+            "label": "yes",
+            "when": "decision == 'yes'"
+          },
+          {
+            "label": "no",
+            "when": "decision != 'yes'"
+          }
         ]
       }
     },
     {
-      "id": "rewrite", "type": "llm", "label": "Rewrite", "position": { "x": 260, "y": 280 },
+      "id": "rewrite",
+      "type": "llm",
+      "label": "Rewrite",
+      "position": {
+        "x": 260,
+        "y": 280
+      },
       "config": {
         "model": "groq/openai/gpt-oss-120b",
         "prompt": "Rewrite this tweet to be punchier, max 20 words: {{draft}}",
         "output_key": "draft"
       }
     },
-    { "id": "end", "type": "end", "label": "Published", "position": { "x": 0, "y": 560 } }
+    {
+      "id": "end",
+      "type": "end",
+      "label": "Published",
+      "position": {
+        "x": 0,
+        "y": 560
+      }
+    }
   ],
   "edges": [
-    { "id": "e1", "source": "start", "target": "write" },
-    { "id": "e2", "source": "write", "target": "review" },
-    { "id": "e3", "source": "review", "target": "route" },
-    { "id": "e4", "source": "route", "target": "end", "label": "yes" },
-    { "id": "e5", "source": "route", "target": "rewrite", "label": "no" },
-    { "id": "e6", "source": "rewrite", "target": "review" }
-  ]
+    {
+      "id": "e1",
+      "source": "start",
+      "target": "write"
+    },
+    {
+      "id": "e2",
+      "source": "write",
+      "target": "review"
+    },
+    {
+      "id": "e3",
+      "source": "review",
+      "target": "route"
+    },
+    {
+      "id": "e4",
+      "source": "route",
+      "target": "end",
+      "label": "yes"
+    },
+    {
+      "id": "e5",
+      "source": "route",
+      "target": "rewrite",
+      "label": "no"
+    },
+    {
+      "id": "e6",
+      "source": "rewrite",
+      "target": "review"
+    }
+  ],
+  "description": "Drafts a tweet, pauses for a human yes/no, rewrites until approved. The smallest graph that shows every node type but tool and code."
 }

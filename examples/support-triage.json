@@ -1,0 +1,52 @@
+{
+  "name": "Support ticket triage with approval",
+  "description": "Classifies a ticket with a model-driven router, drafts the right reply per branch, and waits for a human before sending.",
+  "nodes": [
+    { "id": "start", "type": "start", "label": "Ticket in", "position": { "x": 220, "y": 0 } },
+    {
+      "id": "route", "type": "router", "label": "What kind of ticket?", "position": { "x": 220, "y": 140 },
+      "config": {
+        "mode": "llm", "model": "groq/openai/gpt-oss-20b", "input_key": "ticket",
+        "branches": [
+          { "label": "refund", "when": "the customer wants money back, a refund, or a chargeback" },
+          { "label": "bug", "when": "something is broken, crashing, or not working as expected" },
+          { "label": "question", "when": "a how-to or general question with no money or breakage involved" }
+        ]
+      }
+    },
+    {
+      "id": "refund", "type": "llm", "label": "Refund reply", "position": { "x": -60, "y": 320 },
+      "config": { "model": "groq/openai/gpt-oss-20b", "system_prompt": "You are a calm support agent. Policy: refunds within 14 days of purchase, no questions asked; after that, offer store credit.", "prompt": "Ticket:\n{{ticket}}\n\nWrite a short, warm reply that applies the policy. Ask for the order id if it is missing.", "temperature": 0.3, "max_tokens": 300, "output_key": "reply" }
+    },
+    {
+      "id": "bug", "type": "llm", "label": "Bug reply", "position": { "x": 220, "y": 320 },
+      "config": { "model": "groq/openai/gpt-oss-20b", "system_prompt": "You are a support engineer. Be concrete.", "prompt": "Ticket:\n{{ticket}}\n\nWrite a reply that (1) acknowledges the problem, (2) asks for the three most useful details to reproduce it, (3) gives one likely workaround.", "temperature": 0.3, "max_tokens": 300, "output_key": "reply" }
+    },
+    {
+      "id": "question", "type": "llm", "label": "Answer", "position": { "x": 500, "y": 320 },
+      "config": { "model": "groq/openai/gpt-oss-20b", "system_prompt": "You are a friendly support agent.", "prompt": "Ticket:\n{{ticket}}\n\nAnswer the question directly in under 120 words. If you are not sure, say what you would check.", "temperature": 0.3, "max_tokens": 300, "output_key": "reply" }
+    },
+    {
+      "id": "approve", "type": "human", "label": "Agent approves", "position": { "x": 220, "y": 500 },
+      "config": { "question": "Send this reply? (yes/no)", "show_keys": ["ticket", "reply"], "output_key": "decision" }
+    },
+    {
+      "id": "decide", "type": "router", "label": "Approved?", "position": { "x": 220, "y": 640 },
+      "config": { "mode": "rule", "input_key": "decision", "branches": [ { "label": "send", "when": "lower(decision) == 'yes'" }, { "label": "hold", "when": "True" } ] }
+    },
+    { "id": "sent", "type": "end", "label": "Sent", "position": { "x": 100, "y": 790 } },
+    { "id": "held", "type": "end", "label": "Held for edit", "position": { "x": 360, "y": 790 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "route" },
+    { "id": "e2", "source": "route", "target": "refund", "label": "refund" },
+    { "id": "e3", "source": "route", "target": "bug", "label": "bug" },
+    { "id": "e4", "source": "route", "target": "question", "label": "question" },
+    { "id": "e5", "source": "refund", "target": "approve" },
+    { "id": "e6", "source": "bug", "target": "approve" },
+    { "id": "e7", "source": "question", "target": "approve" },
+    { "id": "e8", "source": "approve", "target": "decide" },
+    { "id": "e9", "source": "decide", "target": "sent", "label": "send" },
+    { "id": "e10", "source": "decide", "target": "held", "label": "hold" }
+  ]
+}

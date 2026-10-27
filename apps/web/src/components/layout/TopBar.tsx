@@ -4,6 +4,7 @@ import { ArrowLeft, Check, CloudOff, ExternalLink, Loader2, Play, Redo2, Square,
 import Link from "next/link";
 import { useStore } from "zustand";
 import { API_URL, api } from "@/lib/api";
+import { GraphMenu } from "./GraphMenu";
 import { useGraphStore, useTemporal } from "@/store/graph";
 import { isTerminal, useRunStore } from "@/store/run";
 
@@ -51,6 +52,7 @@ export function TopBar({ onRun }: { onRun: () => void }) {
       <button onClick={() => redo()} disabled={!futureStates.length} className="rounded p-1.5 text-muted hover:bg-white/5 hover:text-fg disabled:opacity-30" title="Redo (⇧⌘Z)">
         <Redo2 size={15} />
       </button>
+      <GraphMenu />
       <div className="mx-1 h-5 w-px bg-edge" />
       {runStatus && (
         <span

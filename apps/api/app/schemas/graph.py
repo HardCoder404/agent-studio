@@ -204,6 +204,7 @@ class GraphSpec(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(min_length=1, max_length=120)
+    description: str = ""
     version: int = 1
     nodes: list[Node] = Field(default_factory=list)
     edges: list[Edge] = Field(default_factory=list)
@@ -223,6 +224,7 @@ class GraphCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=120)
+    description: str = ""
     nodes: list[Node] = Field(default_factory=list)
     edges: list[Edge] = Field(default_factory=list)
 
@@ -232,4 +234,10 @@ class GraphCreate(BaseModel):
         return self
 
     def to_spec(self, graph_id: UUID | None = None) -> GraphSpec:
-        return GraphSpec(id=graph_id or uuid4(), name=self.name, nodes=self.nodes, edges=self.edges)
+        return GraphSpec(
+            id=graph_id or uuid4(),
+            name=self.name,
+            description=self.description,
+            nodes=self.nodes,
+            edges=self.edges,
+        )

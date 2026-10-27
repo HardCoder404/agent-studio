@@ -49,6 +49,7 @@ export type Issue = { node?: string | null; edge?: string | null; message: strin
 export type GraphSpec = {
   id: string;
   name: string;
+  description?: string;
   version: number;
   nodes: SpecNode[];
   edges: SpecEdge[];
@@ -61,6 +62,7 @@ export type GraphSummary = {
   version: number;
   nodes: number;
   issues: number;
+  shared?: boolean;
   updated_at: string;
 };
 
@@ -260,3 +262,5 @@ export type MCPServerInfo = {
   updated_at: string;
 };
 export type MCPServerBody = { name: string; transport: "stdio" | "http"; command?: string; args?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
+
+export type TemplateInfo = { id: string; name: string; description: string; nodes: number; node_types: NodeType[] };

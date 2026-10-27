@@ -1,0 +1,56 @@
+{
+  "name": "Research brief with critic loop",
+  "description": "Fetches a page, drafts a brief, and lets a critic send it back for revision until it scores well.",
+  "nodes": [
+    { "id": "start", "type": "start", "label": "Start", "position": { "x": 0, "y": 0 } },
+    {
+      "id": "fetch", "type": "tool", "label": "Fetch page", "position": { "x": 0, "y": 150 },
+      "config": { "tool": "http_get", "args": { "url": "{{url}}", "max_chars": 6000 }, "output_key": "page" }
+    },
+    {
+      "id": "draft", "type": "llm", "label": "Draft brief", "position": { "x": 0, "y": 300 },
+      "config": {
+        "model": "groq/openai/gpt-oss-20b",
+        "system_prompt": "You write crisp research briefs for busy engineers. Plain language, no fluff.",
+        "prompt": "Question: {{question}}\n\nSource material:\n{{page}}\n\nPrevious critique (may be empty):\n{{critique}}\n\nWrite a brief answering the question in 5 bullet points, each grounded in the source. End with one sentence on what the source does not cover.",
+        "temperature": 0.3, "max_tokens": 700, "output_key": "brief"
+      }
+    },
+    {
+      "id": "critic", "type": "llm", "label": "Critic", "position": { "x": 0, "y": 450 },
+      "config": {
+        "model": "groq/openai/gpt-oss-120b",
+        "system_prompt": "You are a strict reviewer. Reply with a JSON object only.",
+        "prompt": "Question: {{question}}\n\nBrief:\n{{brief}}\n\nScore the brief from 1 to 10 for accuracy to the source, completeness, and clarity. Reply as JSON: {\"score\": <int>, \"critique\": \"<two sentences on what to fix>\"}",
+        "temperature": 0, "max_tokens": 200, "output_key": "review"
+      }
+    },
+    {
+      "id": "parse", "type": "code", "label": "Parse score", "position": { "x": 0, "y": 600 },
+      "config": {
+        "source": "import json\n\ndef main(state):\n    raw = state.get('review', '')\n    start, end = raw.find('{'), raw.rfind('}')\n    try:\n        data = json.loads(raw[start:end + 1])\n    except Exception:\n        data = {'score': 0, 'critique': 'unparseable review'}\n    rounds = int(state.get('rounds', 0)) + 1\n    return {'score': int(data.get('score', 0)), 'critique': str(data.get('critique', '')), 'rounds': rounds}\n",
+        "timeout_s": 5
+      }
+    },
+    {
+      "id": "gate", "type": "router", "label": "Good enough?", "position": { "x": 0, "y": 750 },
+      "config": {
+        "mode": "rule", "input_key": "score",
+        "branches": [
+          { "label": "ship", "when": "score >= 8 or rounds >= 3" },
+          { "label": "revise", "when": "True" }
+        ]
+      }
+    },
+    { "id": "end", "type": "end", "label": "Done", "position": { "x": 0, "y": 900 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "fetch" },
+    { "id": "e2", "source": "fetch", "target": "draft" },
+    { "id": "e3", "source": "draft", "target": "critic" },
+    { "id": "e4", "source": "critic", "target": "parse" },
+    { "id": "e5", "source": "parse", "target": "gate" },
+    { "id": "e6", "source": "gate", "target": "end", "label": "ship" },
+    { "id": "e7", "source": "gate", "target": "draft", "label": "revise" }
+  ]
+}

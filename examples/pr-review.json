@@ -1,0 +1,42 @@
+{
+  "name": "Pull request reviewer",
+  "description": "Reviews a diff, decides approve vs request-changes by rule, and formats the review for posting.",
+  "nodes": [
+    { "id": "start", "type": "start", "label": "Diff in", "position": { "x": 120, "y": 0 } },
+    {
+      "id": "review", "type": "llm", "label": "Review diff", "position": { "x": 120, "y": 150 },
+      "config": {
+        "model": "groq/openai/gpt-oss-120b",
+        "system_prompt": "You are a senior engineer reviewing a pull request. Be specific: cite line content, not line numbers. Never invent code that is not in the diff.",
+        "prompt": "Repository context: {{context}}\n\nDiff:\n{{diff}}\n\nList findings as bullet points, most severe first. For each: severity (blocker/major/nit), what, why, and a concrete fix. Finish with a line that is exactly VERDICT: APPROVE or VERDICT: REQUEST_CHANGES.",
+        "temperature": 0.1, "max_tokens": 900, "output_key": "findings"
+      }
+    },
+    {
+      "id": "verdict", "type": "code", "label": "Read verdict", "position": { "x": 120, "y": 300 },
+      "config": { "source": "def main(state):\n    text = state.get('findings', '')\n    approve = 'VERDICT: APPROVE' in text and 'REQUEST_CHANGES' not in text\n    blockers = text.lower().count('blocker')\n    return {'approve': approve, 'blockers': blockers}\n", "timeout_s": 5 }
+    },
+    {
+      "id": "gate", "type": "router", "label": "Mergeable?", "position": { "x": 120, "y": 450 },
+      "config": { "mode": "rule", "input_key": "approve", "branches": [ { "label": "approve", "when": "approve and blockers == 0" }, { "label": "changes", "when": "True" } ] }
+    },
+    {
+      "id": "format_ok", "type": "llm", "label": "Approval comment", "position": { "x": -80, "y": 600 },
+      "config": { "model": "groq/openai/gpt-oss-20b", "prompt": "Turn these findings into a short, friendly approval comment for GitHub (markdown, nits as a checklist):\n{{findings}}", "temperature": 0.3, "max_tokens": 400, "output_key": "comment" }
+    },
+    {
+      "id": "format_changes", "type": "llm", "label": "Request changes", "position": { "x": 320, "y": 600 },
+      "config": { "model": "groq/openai/gpt-oss-20b", "prompt": "Turn these findings into a GitHub review requesting changes (markdown). Lead with blockers, keep the tone kind and direct:\n{{findings}}", "temperature": 0.3, "max_tokens": 500, "output_key": "comment" }
+    },
+    { "id": "end", "type": "end", "label": "Review ready", "position": { "x": 120, "y": 760 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "review" },
+    { "id": "e2", "source": "review", "target": "verdict" },
+    { "id": "e3", "source": "verdict", "target": "gate" },
+    { "id": "e4", "source": "gate", "target": "format_ok", "label": "approve" },
+    { "id": "e5", "source": "gate", "target": "format_changes", "label": "changes" },
+    { "id": "e6", "source": "format_ok", "target": "end" },
+    { "id": "e7", "source": "format_changes", "target": "end" }
+  ]
+}

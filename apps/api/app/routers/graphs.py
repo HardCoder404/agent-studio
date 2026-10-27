@@ -42,6 +42,7 @@ async def list_graphs(db: Db) -> list[dict]:
             "version": r.version,
             "nodes": len(r.spec.get("nodes", [])),
             "issues": len(GraphSpec.model_validate(r.spec).lint_issues()),
+            "shared": bool(r.share_token),
             "updated_at": r.updated_at,
         }
         for r in rows

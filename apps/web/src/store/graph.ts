@@ -25,6 +25,7 @@ export type SaveState = "saved" | "dirty" | "saving" | "error";
 type State = {
   graphId: string | null;
   name: string;
+  description: string;
   version: number;
   nodes: StudioNode[];
   edges: StudioEdge[];
@@ -50,7 +51,7 @@ type Actions = {
   markSaved: (spec: GraphSpec) => void;
   markSaving: () => void;
   markError: (message: string) => void;
-  toSpec: () => { name: string; nodes: SpecNode[]; edges: SpecEdge[] };
+  toSpec: () => { name: string; description: string; nodes: SpecNode[]; edges: SpecEdge[] };
 };
 
 export const toFlow = (spec: GraphSpec): { nodes: StudioNode[]; edges: StudioEdge[] } => ({
@@ -80,6 +81,7 @@ export const useGraphStore = create<State & Actions>()(
     (set, get) => ({
       graphId: null,
       name: "",
+      description: "",
       version: 0,
       nodes: [],
       edges: [],
@@ -89,7 +91,7 @@ export const useGraphStore = create<State & Actions>()(
       saveError: null,
 
       load: (spec) =>
-        set({ graphId: spec.id, name: spec.name, version: spec.version, issues: spec.issues, ...toFlow(spec), save: "saved", saveError: null }),
+        set({ graphId: spec.id, name: spec.name, description: spec.description ?? "", version: spec.version, issues: spec.issues, ...toFlow(spec), save: "saved", saveError: null }),
       setName: (name) => set({ name, save: "dirty" }),
 
       onNodesChange: (changes) => {
@@ -174,9 +176,10 @@ export const useGraphStore = create<State & Actions>()(
       markError: (message) => set({ save: "error", saveError: message }),
 
       toSpec: () => {
-        const { name, nodes, edges } = get();
+        const { name, description, nodes, edges } = get();
         return {
           name,
+          description,
           nodes: nodes.map((n) => ({ id: n.id, type: n.type as NodeType, label: n.data.label, position: n.position, config: n.data.config }) as SpecNode),
           edges: edges.map((e) => toSpecEdge(e, nodes)),
         };
