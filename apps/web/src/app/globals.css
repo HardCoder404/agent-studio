@@ -35,9 +35,13 @@ body {
   overflow: hidden;
 }
 .react-flow__controls-button {
-  background: var(--panel);
-  border-bottom: 1px solid var(--edge);
+  background: var(--panel) !important;
+  border-bottom: 1px solid var(--edge) !important;
+  color: var(--muted);
   fill: var(--muted);
+}
+.react-flow__controls-button svg {
+  fill: currentColor;
 }
 .react-flow__controls-button:hover {
   background: #1a1f2a;
@@ -64,6 +68,14 @@ body {
 
 /* React Flow v12 theming hooks: controls, minimap and attribution on the dark canvas */
 .react-flow {
+  --xy-controls-button-background-color: var(--panel);
+  --xy-controls-button-background-color-hover: #1a1f2a;
+  --xy-controls-button-color: var(--muted);
+  --xy-controls-button-color-hover: var(--fg);
+  --xy-controls-button-border-color: var(--edge);
+  --xy-minimap-background-color: var(--panel);
+  --xy-minimap-mask-background-color: rgb(0 0 0 / 0.55);
+  --xy-attribution-background-color: transparent;
   --xy-controls-button-background-color-default: var(--panel);
   --xy-controls-button-background-color-hover-default: #1a1f2a;
   --xy-controls-button-color-default: var(--muted);
