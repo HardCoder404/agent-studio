@@ -7,26 +7,41 @@ from typing import Any
 import httpx
 
 ToolFn = Callable[..., Awaitable[Any]]
-_REGISTRY: dict[str, tuple[ToolFn, str]] = {}
+_REGISTRY: dict[str, dict] = {}  # name -> {fn, description, server, schema}
 
 
 def register(name: str, description: str) -> Callable[[ToolFn], ToolFn]:
     def deco(fn: ToolFn) -> ToolFn:
-        _REGISTRY[name] = (fn, description)
+        _REGISTRY[name] = {"fn": fn, "description": description, "server": None, "schema": None}
         return fn
 
     return deco
 
 
+def register_dynamic(
+    name: str, description: str, fn: ToolFn, *, server: str | None, schema: dict | None
+) -> None:
+    """Used by MCP: tools that appear and disappear at runtime."""
+    _REGISTRY[name] = {"fn": fn, "description": description, "server": server, "schema": schema}
+
+
+def unregister_prefix(prefix: str) -> None:
+    for name in [n for n in _REGISTRY if n.startswith(prefix)]:
+        del _REGISTRY[name]
+
+
 def get_tool(name: str) -> ToolFn:
     try:
-        return _REGISTRY[name][0]
+        return _REGISTRY[name]["fn"]
     except KeyError as e:
         raise ValueError(f"unknown tool {name!r}; known: {sorted(_REGISTRY)}") from e
 
 
 def list_tools() -> list[dict]:
-    return [{"name": n, "description": d} for n, (_, d) in sorted(_REGISTRY.items())]
+    return [
+        {"name": n, "description": t["description"], "server": t["server"], "schema": t["schema"]}
+        for n, t in sorted(_REGISTRY.items())
+    ]
 
 
 @register("current_time", "Current UTC time as ISO-8601")

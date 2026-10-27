@@ -74,7 +74,7 @@ export type ModelInfo = {
   available: boolean;
 };
 
-export type ToolInfo = { name: string; description: string };
+export type ToolInfo = { name: string; description: string; server: string | null; schema: Record<string, unknown> | null };
 
 export const defaultConfig: { [K in NodeType]: NodeConfigMap[K] } = {
   start: {},
@@ -245,3 +245,18 @@ export type StatBucket = {
   p95_ms: number | null;
 };
 export type GraphStats = { runs: number; nodes: Record<string, StatBucket>; models: Record<string, StatBucket>; total: StatBucket };
+
+export type MCPServerInfo = {
+  id: string;
+  name: string;
+  transport: "stdio" | "http";
+  command: string | null;
+  args: string[];
+  url: string | null;
+  enabled: boolean;
+  tools: { name: string; description: string; input_schema: Record<string, unknown> }[];
+  status: "connected" | "connecting" | "stopped" | "disconnected";
+  last_error: string | null;
+  updated_at: string;
+};
+export type MCPServerBody = { name: string; transport: "stdio" | "http"; command?: string; args?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };

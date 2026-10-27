@@ -4,14 +4,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.engine import checkpointer
-from app.routers import evals, graphs, models, runs, stats, tools, ws
+from app.engine.mcp import manager as mcp_manager
+from app.routers import evals, graphs, mcp, models, runs, stats, tools, ws
 from app.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await checkpointer.open_postgres(settings.database_url)
+    await mcp.connect_all_enabled()
     yield
+    await mcp_manager.close()
     await checkpointer.close()
 
 
@@ -32,6 +35,7 @@ app.include_router(ws.router)
 app.include_router(evals.datasets)
 app.include_router(evals.evals)
 app.include_router(stats.router)
+app.include_router(mcp.router)
 
 
 @app.get("/health")

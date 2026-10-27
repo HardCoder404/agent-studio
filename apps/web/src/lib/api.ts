@@ -1,4 +1,4 @@
-import type { Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphStats, Sweep, SweepSummary, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
+import type { Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphStats, MCPServerBody, MCPServerInfo, Sweep, SweepSummary, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const WS_URL = API_URL.replace(/^http/, "ws");
@@ -55,6 +55,10 @@ export const api = {
   getSweep: (id: string) => request<Sweep>(`/evals/sweeps/${id}`),
   listSweeps: (graphId: string) => request<SweepSummary[]>(`/evals/sweeps?graph_id=${graphId}`),
   getStats: (graphId: string) => request<GraphStats>(`/graphs/${graphId}/stats`),
+  listMcp: () => request<MCPServerInfo[]>("/mcp/servers"),
+  addMcp: (body: MCPServerBody) => request<MCPServerInfo>("/mcp/servers", { method: "POST", body: JSON.stringify(body) }),
+  refreshMcp: (id: string) => request<MCPServerInfo>(`/mcp/servers/${id}/refresh`, { method: "POST" }),
+  deleteMcp: (id: string) => request<void>(`/mcp/servers/${id}`, { method: "DELETE" }),
   forkRun: (id: string, checkpoint_id: string, vars: Record<string, unknown>) =>
     request<RunInfo>(`/runs/${id}/fork`, { method: "POST", body: JSON.stringify({ checkpoint_id, vars }) }),
   resumeRun: (id: string, value: unknown) => request<RunInfo>(`/runs/${id}/resume`, { method: "POST", body: JSON.stringify({ value }) }),

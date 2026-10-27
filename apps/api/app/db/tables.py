@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -127,3 +127,27 @@ class EvalResult(Base):
     usage: Mapped[dict] = mapped_column(JSON, default=dict)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class MCPServer(Base):
+    __tablename__ = "mcp_servers"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(
+        String(64), unique=True
+    )  # tool names become mcp:<name>:<tool>
+    transport: Mapped[str] = mapped_column(String(16))  # stdio | http
+    command: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    args: Mapped[list] = mapped_column(JSON, default=list)
+    env: Mapped[dict] = mapped_column(JSON, default=dict)
+    url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    headers: Mapped[dict] = mapped_column(JSON, default=dict)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    tools: Mapped[list] = mapped_column(
+        JSON, default=list
+    )  # cached [{name, description, input_schema}]
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

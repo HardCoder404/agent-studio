@@ -31,13 +31,36 @@ export function ToolForm({ config, vars, onChange }: Props) {
       <Field label="Tool" hint={current?.description}>
         <Select value={config.tool} onChange={(e) => onChange({ tool: e.target.value })}>
           {!tools.length && <option value={config.tool}>{config.tool}</option>}
-          {tools.map((t) => (
-            <option key={t.name} value={t.name}>
-              {t.name}
-            </option>
+          <optgroup label="built-in">
+            {tools.filter((t) => !t.server).map((t) => (
+              <option key={t.name} value={t.name}>
+                {t.name}
+              </option>
+            ))}
+          </optgroup>
+          {[...new Set(tools.filter((t) => t.server).map((t) => t.server))].map((srv) => (
+            <optgroup key={srv!} label={`MCP · ${srv}`}>
+              {tools.filter((t) => t.server === srv).map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name.split(":").slice(2).join(":")}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </Select>
       </Field>
+      {current?.schema && typeof current.schema.properties === "object" && current.schema.properties && (
+        <p className="text-[11px] text-muted">
+          expects{" "}
+          {Object.entries(current.schema.properties as Record<string, { type?: string }>).map(([k, v], i, arr) => (
+            <span key={k}>
+              <span className="font-mono text-sky-300">{k}</span>
+              {v?.type ? <span className="text-muted/70">: {v.type}</span> : null}
+              {i < arr.length - 1 ? ", " : ""}
+            </span>
+          ))}
+        </p>
+      )}
       <Field label="Arguments" hint={argsError ?? "JSON, values may use {{vars}}"}>
         <CodeField language="json" value={argsText} onChange={onArgs} height={110} />
       </Field>

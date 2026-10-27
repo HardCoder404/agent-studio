@@ -20,12 +20,27 @@ export function useModels(): ModelInfo[] {
   return v;
 }
 
+const toolListeners = new Set<(t: ToolInfo[]) => void>();
+
+/** Re-fetch the tool list (after an MCP server is added/removed) and notify every open form. */
+export async function refreshTools(): Promise<ToolInfo[]> {
+  tools = await api.listTools();
+  toolsP = Promise.resolve(tools);
+  toolListeners.forEach((fn) => fn(tools!));
+  return tools;
+}
+
 export function useTools(): ToolInfo[] {
   const [v, setV] = useState<ToolInfo[]>(tools ?? []);
   useEffect(() => {
-    if (tools) return;
-    toolsP ??= api.listTools().then((t) => (tools = t));
-    toolsP.then(setV).catch(() => {});
+    toolListeners.add(setV);
+    if (!tools) {
+      toolsP ??= api.listTools().then((t) => (tools = t));
+      toolsP.then(setV).catch(() => {});
+    }
+    return () => {
+      toolListeners.delete(setV);
+    };
   }, []);
   return v;
 }
