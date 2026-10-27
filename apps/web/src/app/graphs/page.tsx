@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Bot, Code2, Copy, Flag, GitFork, Link2, Play, Plus, Search, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, BookOpen, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
-import type { GraphSummary, NodeType, TemplateInfo } from "@/lib/types";
+import type { GraphSummary, NodeType, RunInfo, TemplateInfo } from "@/lib/types";
+import { API_URL } from "@/lib/api";
 
 const starter = {
   name: "Untitled graph",
@@ -53,6 +54,8 @@ export default function GraphsPage() {
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [runs, setRuns] = useState<RunInfo[]>([]);
+  const [health, setHealth] = useState<{ groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -60,6 +63,8 @@ export default function GraphsPage() {
   useEffect(() => {
     refresh();
     api.listTemplates().then(setTemplates).catch(() => {});
+    fetch(`${API_URL}/runs?limit=8`).then((r) => r.json()).then(setRuns).catch(() => {});
+    fetch(`${API_URL}/health`).then((r) => r.json()).then(setHealth).catch(() => {});
   }, []);
 
   const create = async () => router.push(`/graphs/${(await api.createGraph(starter)).id}`);
@@ -95,9 +100,11 @@ export default function GraphsPage() {
       <div aria-hidden className="pointer-events-none absolute -left-40 top-40 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -right-40 top-80 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
 
-      <div className="relative mx-auto max-w-5xl px-6 pt-16 pb-24">
+      <div className="relative mx-auto grid max-w-[1600px] grid-cols-1 gap-8 px-6 pt-8 pb-24 lg:grid-cols-[13rem_minmax(0,1fr)_19rem]">
+        <SideNav />
+        <div className="min-w-0">
         {/* hero */}
-        <header className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <header id="how" className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-edge bg-panel/60 px-3 py-1 text-[11px] font-medium tracking-wide text-muted backdrop-blur">
               <Sparkles size={12} className="text-sky-300" /> Chrome DevTools for AI agents
@@ -134,7 +141,7 @@ export default function GraphsPage() {
 
         {/* templates */}
         {templates.length > 0 && (
-          <section className="mb-14">
+          <section id="templates" className="mb-14 scroll-mt-8">
             <div className="mb-4 flex items-baseline justify-between">
               <h2 className="text-sm font-semibold tracking-tight">Start from a template</h2>
               <span className="text-xs text-muted">one click, runs on free tiers</span>
@@ -163,7 +170,7 @@ export default function GraphsPage() {
         )}
 
         {/* graphs */}
-        <section>
+        <section id="graphs" className="scroll-mt-8">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold tracking-tight">Your graphs</h2>
             <label className="flex items-center gap-2 rounded-lg border border-edge bg-panel/60 px-3 py-1.5 text-xs text-muted focus-within:border-sky-500/50">
@@ -179,7 +186,7 @@ export default function GraphsPage() {
           )}
           {graphs && graphs.length > 0 && shown.length === 0 && <p className="text-sm text-muted">Nothing matches “{q}”.</p>}
 
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {shown.map((g) => (
               <li key={g.id} className="group relative rounded-2xl border border-edge bg-panel p-4 transition hover:border-white/15 hover:shadow-xl hover:shadow-black/30">
                 <Link href={`/graphs/${g.id}`} className="block">
@@ -217,7 +224,110 @@ export default function GraphsPage() {
             ))}
           </ul>
         </section>
+        </div>
+        <RightRail runs={runs} graphs={graphs ?? []} health={health} />
       </div>
     </main>
+  );
+}
+
+function SideNav() {
+  const items: [LucideIcon, string, string][] = [
+    [LayoutGrid, "Graphs", "#graphs"],
+    [Sparkles, "Templates", "#templates"],
+    [Activity, "Recent runs", "#runs"],
+    [BookOpen, "How it works", "#how"],
+  ];
+  return (
+    <aside className="hidden lg:block">
+      <div className="sticky top-8 space-y-6">
+        <div className="flex items-center gap-2 px-2 text-sm font-semibold">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-sky-400/30 to-violet-500/30 text-sky-200 ring-1 ring-white/10">
+            <Workflow size={15} />
+          </span>
+          Agent Studio
+        </div>
+        <nav className="space-y-0.5">
+          {items.map(([Icon, label, href]) => (
+            <a key={label} href={href} className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-fg">
+              <Icon size={15} /> {label}
+            </a>
+          ))}
+        </nav>
+        <div className="rounded-xl border border-edge bg-panel/60 p-3 text-[11px] leading-relaxed text-muted">
+          <div className="mb-1.5 flex items-center gap-1.5 font-medium text-fg"><Keyboard size={12} /> Shortcuts</div>
+          <div><kbd className="rounded border border-edge px-1 font-mono">⌘K</kbd> commands</div>
+          <div><kbd className="rounded border border-edge px-1 font-mono">⌘↵</kbd> run graph</div>
+          <div><kbd className="rounded border border-edge px-1 font-mono">⌘Z</kbd> undo · <kbd className="rounded border border-edge px-1 font-mono">⌫</kbd> delete</div>
+        </div>
+        <div className="space-y-2 rounded-xl border border-edge bg-panel/60 p-3 text-[11px] text-muted">
+          <div className="flex items-center gap-1.5 font-medium text-fg"><BookOpen size={12} /> How it works</div>
+          {["Compose nodes on the canvas", "Run; answer human gates live", "Scrub checkpoints, edit state, fork", "Eval, sweep models, ship"].map((t, i) => (
+            <div key={t} className="flex gap-2"><span className="text-sky-300">{i + 1}.</span> {t}</div>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+const runTone: Record<string, string> = { done: "bg-emerald-400", error: "bg-rose-400", paused: "bg-pink-400", running: "bg-sky-400", cancelled: "bg-amber-400", queued: "bg-zinc-500" };
+
+function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSummary[]; health: { groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null }) {
+  const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
+  const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
+  return (
+    <aside className="space-y-5 lg:sticky lg:top-8 lg:self-start">
+      <section id="runs" className="rounded-2xl border border-edge bg-panel p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Activity size={14} className="text-sky-300" /> Recent runs</h3>
+          <span className="text-[11px] text-muted">last {runs.length}</span>
+        </div>
+        {!runs.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
+        <ul className="space-y-1.5">
+          {runs.map((r) => (
+            <li key={r.id}>
+              <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-white/5">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} />
+                <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
+                <span className="shrink-0 text-muted">{r.status}</span>
+                <span className="shrink-0 text-muted/70">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)}s` : ""}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {runs.length > 0 && <div className="mt-3 border-t border-edge pt-2 text-[11px] text-muted">spent on these runs <b className="text-fg">${totalCost.toFixed(5)}</b></div>}
+      </section>
+
+      <section className="rounded-2xl border border-edge bg-panel p-4">
+        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><Cpu size={14} className="text-violet-300" /> System</h3>
+        <ul className="space-y-1.5 text-xs">
+          {[
+            ["Groq models", health?.groq, health ? (health.groq ? "connected" : "no key") : "…"],
+            ["Gemini", health?.gemini, health ? (health.gemini ? "connected" : "optional") : "…"],
+            ["Tracing (Langfuse)", health?.langfuse, health ? (health.langfuse ? "on" : "optional") : "…"],
+            ["Code sandbox", health?.code_sandbox === "docker", health?.code_sandbox ?? "…"],
+          ].map(([label, ok, text]) => (
+            <li key={String(label)} className="flex items-center justify-between">
+              <span className="text-muted">{label}</span>
+              <span className={`flex items-center gap-1 ${ok ? "text-emerald-300" : "text-muted"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-zinc-600"}`} /> {text}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {health?.budget && (
+          <div className="mt-3 border-t border-edge pt-2">
+            <div className="mb-1 flex justify-between text-[11px] text-muted"><span>model calls today</span><span className="text-fg">{health.budget.used}{health.budget.limit ? ` / ${health.budget.limit}` : ""}</span></div>
+            {health.budget.limit && <div className="h-1.5 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-violet-400" style={{ width: `${Math.min(100, (health.budget.used / health.budget.limit) * 100)}%` }} /></div>}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-edge bg-gradient-to-br from-sky-500/10 via-panel to-violet-500/10 p-4 text-xs leading-relaxed text-muted">
+        <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-emerald-300" /> Free-tier friendly</h3>
+        Runs cost about <b className="text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
+      </section>
+    </aside>
   );
 }

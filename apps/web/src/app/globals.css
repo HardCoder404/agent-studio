@@ -61,3 +61,24 @@ body {
   font-size: 10px;
   font-family: var(--font-mono);
 }
+
+/* React Flow v12 theming hooks: controls, minimap and attribution on the dark canvas */
+.react-flow {
+  --xy-controls-button-background-color-default: var(--panel);
+  --xy-controls-button-background-color-hover-default: #1a1f2a;
+  --xy-controls-button-color-default: var(--muted);
+  --xy-controls-button-color-hover-default: var(--fg);
+  --xy-controls-button-border-color-default: var(--edge);
+  --xy-controls-box-shadow-default: 0 4px 16px rgb(0 0 0 / 0.4);
+  --xy-minimap-background-color-default: var(--panel);
+  --xy-minimap-mask-background-color-default: rgb(0 0 0 / 0.55);
+  --xy-attribution-background-color-default: transparent;
+}
+.react-flow__attribution {
+  color: #3b4252;
+  font-size: 9px;
+  background: transparent;
+}
+.react-flow__attribution a {
+  color: #4b5366;
+}
