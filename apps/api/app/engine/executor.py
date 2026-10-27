@@ -14,6 +14,7 @@ from app.db.tables import Run, RunEvent
 from app.engine import bus
 from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
+from app.observability import langfuse_export
 from app.schemas.graph import GraphSpec
 
 RECURSION_LIMIT = 100
@@ -170,3 +171,16 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any = None) 
             await sink.emit("run_error", error=run.error)
         await db.commit()
         bus.publish(run_id, {"seq": None, "type": "status", "status": run.status})
+        await _export(db, run_id)
+
+
+async def _export(db: AsyncSession, run_id: uuid.UUID) -> None:
+    """Push the finished run to Langfuse (no-op without keys). Never raises."""
+    if not langfuse_export.enabled():
+        return
+    rows = (
+        (await db.execute(select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.seq)))
+        .scalars()
+        .all()
+    )
+    await asyncio.to_thread(langfuse_export.export_run, run_id, rows)

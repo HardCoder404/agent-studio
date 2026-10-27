@@ -59,9 +59,35 @@ def get_chat_model(
     else:  # pragma: no cover
         raise ValueError(f"unsupported provider {info.provider}")
 
-    # Exponential backoff: 1s, 2s, 4s between attempts, 4 attempts total.
-    return llm.with_retry(
-        retry_if_exception_type=_RETRYABLE or (Exception,),
-        wait_exponential_jitter=True,
-        stop_after_attempt=4,
-    )
+    return llm
+
+
+RETRYABLE: tuple[type[Exception], ...] = _RETRYABLE or (Exception,)
+
+
+async def ainvoke_with_retry(llm: BaseChatModel, messages, on_retry=None, attempts: int = 4):
+    """Call the model, retrying rate limits and connection errors with exponential backoff.
+
+    `on_retry(attempt, wait_seconds, reason)` is called before each wait so the UI can show
+    "retrying…" instead of a silent stall.
+    """
+    import asyncio
+    import random
+
+    for attempt in range(1, attempts + 1):
+        try:
+            return await llm.ainvoke(messages)
+        except RETRYABLE as e:
+            if attempt == attempts:
+                raise
+            wait = min(8.0, 2 ** (attempt - 1)) + random.uniform(0, 0.5)
+            retry_after = getattr(getattr(e, "response", None), "headers", {}) or {}
+            if retry_after.get("retry-after"):
+                try:
+                    wait = max(wait, float(retry_after["retry-after"]))
+                except ValueError:
+                    pass
+            if on_retry:
+                on_retry(attempt, round(wait, 2), f"{type(e).__name__}: {str(e)[:120]}")
+            await asyncio.sleep(wait)
+    raise RuntimeError("unreachable")

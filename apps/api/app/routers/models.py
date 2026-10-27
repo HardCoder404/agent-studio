@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.llm.catalog import CATALOG
-from app.llm.provider import get_chat_model
+from app.llm.provider import ainvoke_with_retry, get_chat_model
 from app.llm.usage import usage_from_message
 from app.settings import settings
 
@@ -39,7 +39,7 @@ async def ping_model(model_id: str, body: PingBody) -> dict:
     llm = get_chat_model(model_id, temperature=0, max_tokens=128)
     t0 = time.perf_counter()
     try:
-        msg = await llm.ainvoke(body.prompt)
+        msg = await ainvoke_with_retry(llm, body.prompt)
     except Exception as e:  # surface provider errors as 502, not 500
         raise HTTPException(502, f"{type(e).__name__}: {e}") from e
     return {

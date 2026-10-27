@@ -129,6 +129,7 @@ export type RunInfo = {
   error: string | null;
   usage: Partial<RunUsage>;
   duration_ms: number | null;
+  trace_url: string | null;
   started_at: string | null;
   finished_at: string | null;
   created_at: string;
@@ -153,6 +154,9 @@ export type RunEvent = {
   show?: Record<string, unknown>;
   checkpoint_id?: string;
   replay?: boolean;
+  attempt?: number;
+  wait_s?: number;
+  reason?: string;
 };
 
 export type Checkpoint = {

@@ -64,6 +64,7 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
   const tokens = useRunStore((s) => (s.replayStatus ? undefined : s.tokens[id]));
   const output_ = useRunStore((s) => s.outputs[id]);
   const heat = useRunStore((s) => (s.heat ? (s.heat[id] ?? 0) : null));
+  const retries = useRunStore((s) => s.retries[id] ?? 0);
 
   const preview = !replaying && status === "done" && output_ ? Object.values(output_).find((v) => typeof v === "string") : null;
 
@@ -88,6 +89,9 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
           <div className="truncate font-medium text-fg">{title}</div>
           {subtitle && <div className="truncate text-[11px] text-muted">{subtitle}</div>}
         </div>
+        {retries > 0 && status === "running" && (
+          <span className="rounded bg-amber-400/15 px-1 text-[10px] text-amber-300" title="rate limited or connection error; backing off">retry ×{retries}</span>
+        )}
         <StatusBadge status={status} />
         {issues.length > 0 && (
           <span title={issues.map((i) => i.message).join("\n")} className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px] shadow-amber-400/60" />

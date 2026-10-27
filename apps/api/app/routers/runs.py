@@ -13,6 +13,8 @@ from app.engine import bus
 from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
 from app.engine.executor import CONTINUE, run_config, start_in_background
+from app.observability import langfuse_export
+from app.observability.trace import build_trace, to_otel_json
 from app.schemas.graph import GraphSpec
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -54,6 +56,7 @@ def _view(run: Run) -> dict:
         "error": run.error,
         "usage": run.usage,
         "duration_ms": _duration_ms(run),
+        "trace_url": langfuse_export.trace_url(run.id),
         "started_at": run.started_at,
         "finished_at": run.finished_at,
         "created_at": run.created_at,
@@ -267,3 +270,15 @@ async def fork_run(run_id: uuid.UUID, body: ForkBody, db: Db) -> dict:
     await db.refresh(run)
     start_in_background(run.id, spec, CONTINUE)
     return _view(run)
+
+
+@router.get("/{run_id}/trace")
+async def get_trace(run_id: uuid.UUID, db: Db) -> dict:
+    """The run as an OpenTelemetry-style trace (OTLP/JSON layout), built from its events."""
+    await _get(db, run_id)
+    rows = (
+        (await db.execute(select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.seq)))
+        .scalars()
+        .all()
+    )
+    return to_otel_json(run_id, build_trace(run_id, rows))

@@ -13,6 +13,7 @@ from app.db.tables import Dataset, EvalResult, EvalRun, Run
 from app.engine import bus
 from app.engine.executor import execute
 from app.evals.scorers import ScorerSpec, score
+from app.observability import langfuse_export
 from app.schemas.graph import GraphSpec
 
 CONCURRENCY = 3  # free-tier friendly: Groq allows ~30 requests/min
@@ -97,6 +98,10 @@ async def execute_eval(eval_id: uuid.UUID, spec: GraphSpec) -> None:
                             result.usage["judge_cost_usd"] = round(
                                 result.usage.get("judge_cost_usd", 0) + sc.usage.cost_usd, 6
                             )
+                    if langfuse_export.enabled() and result.scores:
+                        await asyncio.to_thread(
+                            langfuse_export.export_scores, run.id, result.scores
+                        )
             except Exception as e:  # noqa: BLE001 - one bad row must not sink the eval
                 result.error = f"{type(e).__name__}: {e}"
             result.duration_ms = int((datetime.now(UTC) - t0).total_seconds() * 1000)

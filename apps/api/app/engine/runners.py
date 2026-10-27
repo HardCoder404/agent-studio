@@ -17,11 +17,26 @@ from app.engine import tools as tool_registry
 from app.engine.rules import evaluate
 from app.engine.state import RunState
 from app.engine.template import render, render_value
-from app.llm.provider import get_chat_model
+from app.llm.provider import ainvoke_with_retry, get_chat_model
 from app.llm.usage import usage_from_message
 from app.schemas.graph import CodeNode, HumanNode, LLMNode, RouterNode, ToolNode
 
 Runner = Callable[[RunState], Awaitable[dict]]
+
+
+def _retry_reporter(node_id: str):
+    def report(attempt: int, wait_s: float, reason: str) -> None:
+        _emit(
+            {
+                "type": "retry",
+                "node": node_id,
+                "attempt": attempt,
+                "wait_s": wait_s,
+                "reason": reason,
+            }
+        )
+
+    return report
 
 
 def _emit(event: dict) -> None:
@@ -42,7 +57,7 @@ def make_llm_runner(node: LLMNode) -> Runner:
             messages.append(SystemMessage(render(cfg.system_prompt, state["vars"])))
         messages.append(HumanMessage(render(cfg.prompt, state["vars"])))
         t0 = time.perf_counter()
-        msg = await llm.ainvoke(messages)
+        msg = await ainvoke_with_retry(llm, messages, on_retry=_retry_reporter(node.id))
         usage = usage_from_message(cfg.model, msg)
         text = msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
         entry = {
@@ -151,7 +166,9 @@ def make_router(node: RouterNode) -> tuple[Runner, Callable[[RunState], Awaitabl
             "Pick exactly one option for the input below. Reply with the option label only.\n\n"
             f"Options:\n{options}\n\nInput:\n{vars.get(cfg.input_key, '')}"
         )
-        msg = await llm.ainvoke([HumanMessage(prompt)])
+        msg = await ainvoke_with_retry(
+            llm, [HumanMessage(prompt)], on_retry=_retry_reporter(node.id)
+        )
         raw = (msg.content if isinstance(msg.content, str) else "").strip().strip("\"'").lower()
         chosen = next((lb for lb in labels if lb.lower() == raw), None)
         if chosen is None:  # tolerate "label." or "Label: because..."

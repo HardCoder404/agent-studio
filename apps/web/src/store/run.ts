@@ -23,6 +23,7 @@ type State = {
   replayIndex: number | null; // index into checkpoints while scrubbing, null = live view
   replayStatus: Record<string, NodeStatus> | null; // derived from replayIndex
   heat: Record<string, number> | null; // node id -> share of failed eval rows
+  retries: Record<string, number>; // node id -> retry attempts seen this run
 };
 
 type Actions = {
@@ -53,6 +54,7 @@ const empty: State = {
   replayIndex: null,
   replayStatus: null,
   heat: null,
+  retries: {},
 };
 
 export const TERMINAL: RunStatus[] = ["done", "error", "cancelled"];
@@ -125,6 +127,9 @@ export const useRunStore = create<State & Actions>()((set) => ({
           break;
         case "run_cancelled":
           next.status = "cancelled";
+          break;
+        case "retry":
+          if (node) next.retries = { ...s.retries, [node]: (s.retries[node] ?? 0) + 1 };
           break;
         case "checkpoint":
           // passthrough nodes (start/end) emit no node_start/node_end; a checkpoint means they ran

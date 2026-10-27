@@ -192,3 +192,26 @@ async def test_fork_from_checkpoint(client, monkeypatch):
     assert (
         await client.post(f"/runs/{rid}/fork", json={"checkpoint_id": "nope"})
     ).status_code == 404
+
+
+async def test_trace_endpoint(client, monkeypatch):
+    checkpointer.use_memory()
+    script(monkeypatch, ["d"])
+    gid = (await client.post("/graphs", json=EXAMPLE)).json()["id"]
+    rid = (await client.post("/runs", json={"graph_id": gid, "input": {"topic": "t"}})).json()["id"]
+    await wait_for(client, rid, "paused")
+    await client.post(f"/runs/{rid}/resume", json={"value": "yes"})
+    await wait_for(client, rid, "done")
+    doc = (await client.get(f"/runs/{rid}/trace")).json()
+    spans = doc["resourceSpans"][0]["scopeSpans"][0]["spans"]
+    assert spans[0]["name"] == "run" and spans[0]["traceId"] == rid.replace("-", "")
+    assert {s["name"] for s in spans} >= {
+        "run",
+        "write",
+        "review",
+        "route",
+        "waiting for human (review)",
+    }
+    assert (await client.get(f"/runs/{rid}")).json()[
+        "trace_url"
+    ] is None  # no Langfuse keys in tests

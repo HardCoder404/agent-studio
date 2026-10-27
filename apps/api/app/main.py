@@ -40,4 +40,5 @@ def health() -> dict:
         "ok": True,
         "groq": bool(settings.groq_api_key),
         "gemini": bool(settings.gemini_api_key),
+        "langfuse": bool(settings.langfuse_public_key and settings.langfuse_secret_key),
     }

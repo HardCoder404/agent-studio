@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowLeft, Check, CloudOff, Loader2, Play, Redo2, Square, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, CloudOff, ExternalLink, Loader2, Play, Redo2, Square, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useStore } from "zustand";
-import { api } from "@/lib/api";
+import { API_URL, api } from "@/lib/api";
 import { useGraphStore, useTemporal } from "@/store/graph";
 import { isTerminal, useRunStore } from "@/store/run";
 
@@ -63,6 +63,11 @@ export function TopBar({ onRun }: { onRun: () => void }) {
           {runStatus}
           {usage && runStatus === "done" && <span className="text-muted">· {usage.llm_calls} calls · ${usage.cost_usd}</span>}
         </span>
+      )}
+      {runId && isTerminal(runStatus) && (
+        <a href={`${API_URL}/runs/${runId}/trace`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-muted hover:bg-white/5 hover:text-fg" title="OpenTelemetry-style trace JSON for this run">
+          <ExternalLink size={12} /> trace
+        </a>
       )}
       {busy ? (
         <button onClick={() => runId && api.cancelRun(runId).catch(() => {})} className="flex items-center gap-1.5 rounded-md bg-rose-500/15 px-3 py-1.5 text-sm font-medium text-rose-300 hover:bg-rose-500/25" title="Cancel run">

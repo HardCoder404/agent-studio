@@ -18,6 +18,8 @@ const typeColor: Record<string, string> = {
   run_error: "text-rose-300",
   run_cancelled: "text-amber-300",
   interrupt: "text-pink-300",
+  retry: "text-amber-300",
+  run_fork: "text-violet-300",
   node_start: "text-sky-300",
   node_end: "text-sky-300",
   checkpoint: "text-muted/60",
@@ -38,6 +40,8 @@ function summary(e: RunEvent): string {
     }
     case "interrupt":
       return e.question ?? "";
+    case "retry":
+      return `attempt ${e.attempt} · waiting ${e.wait_s}s · ${e.reason ?? ""}`;
     case "run_end": {
       const u = e.usage ?? {};
       return `done · ${u.llm_calls ?? 0} calls · ${u.input_tokens ?? 0}→${u.output_tokens ?? 0} tok · $${u.cost_usd ?? 0}`;
