@@ -1,6 +1,8 @@
-"""Runs a compiled graph for one Run row, persisting events and the final state."""
+"""Runs a compiled graph for one Run row: persists events, streams them to subscribers."""
 
+import asyncio
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from langgraph.types import Command
@@ -9,11 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import SessionLocal
 from app.db.tables import Run, RunEvent
+from app.engine import bus
 from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
 from app.schemas.graph import GraphSpec
 
 RECURSION_LIMIT = 100
+TERMINAL = {"done", "error", "cancelled"}
 
 
 def run_config(thread_id: str) -> dict:
@@ -21,7 +25,7 @@ def run_config(thread_id: str) -> dict:
 
 
 class EventSink:
-    """Appends numbered events to run_events."""
+    """Numbers events, writes them to run_events and fans them out to live subscribers."""
 
     def __init__(self, db: AsyncSession, run_id: uuid.UUID):
         self.db, self.run_id = db, run_id
@@ -35,10 +39,21 @@ class EventSink:
 
     async def emit(self, type: str, node_id: str | None = None, **payload: Any) -> None:
         self.seq += 1
+        ts = datetime.now(UTC)
         self.db.add(
-            RunEvent(run_id=self.run_id, seq=self.seq, type=type, node_id=node_id, payload=payload)
+            RunEvent(
+                run_id=self.run_id, seq=self.seq, type=type, node_id=node_id, payload=payload, ts=ts
+            )
         )
         await self.db.commit()
+        bus.publish(
+            self.run_id,
+            {"seq": self.seq, "type": type, "node": node_id, "ts": ts.isoformat(), **payload},
+        )
+
+    def live(self, type: str, node_id: str | None = None, **payload: Any) -> None:
+        """Fan out without persisting (tokens): cheap, and node_end carries the full text anyway."""
+        bus.publish(self.run_id, {"seq": None, "type": type, "node": node_id, **payload})
 
 
 def _sum_usage(trace: list[dict]) -> dict:
@@ -53,8 +68,16 @@ def _sum_usage(trace: list[dict]) -> dict:
     return total
 
 
+def start_in_background(
+    run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None = None
+) -> asyncio.Task:
+    task = asyncio.create_task(execute(run_id, spec, resume_value))
+    bus.track(run_id, task)
+    return task
+
+
 async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None = None) -> None:
-    """Start a run (resume_value=None) or resume a paused one. Safe to call as a background task."""
+    """Start a run (resume_value=None) or resume a paused one."""
     async with SessionLocal() as db:
         run = await db.get(Run, run_id)
         if run is None:
@@ -67,6 +90,7 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None =
         skip_start: str | None = None
         if resume_value is None:
             payload: Any = {"vars": dict(run.input), "trace": []}
+            run.started_at = datetime.now(UTC)
             await sink.emit("run_start", input=run.input)
         else:
             payload = Command(resume=resume_value)
@@ -77,11 +101,11 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None =
 
         run.status, run.interrupt = "running", None
         await db.commit()
+        bus.publish(run_id, {"seq": None, "type": "status", "status": "running"})
 
         try:
-            async for mode, chunk in graph.astream(
-                payload, config, stream_mode=["custom", "updates"]
-            ):
+            stream = graph.astream(payload, config, stream_mode=["custom", "updates", "messages"])
+            async for mode, chunk in stream:
                 if mode == "custom":
                     ev = dict(chunk)
                     type_, node = ev.pop("type"), ev.pop("node", None)
@@ -89,19 +113,42 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None =
                         skip_start = None
                         continue
                     await sink.emit(type_, node, **ev)
-                elif mode == "updates" and "__interrupt__" in chunk:
-                    intr = chunk["__interrupt__"][0].value
-                    run.status, run.interrupt = "paused", intr
-                    await sink.emit("interrupt", intr.get("node"), **intr)
-                    await db.commit()
-                    return
+
+                elif mode == "messages":
+                    msg, meta = chunk
+                    text = msg.content if isinstance(msg.content, str) else ""
+                    if text:
+                        sink.live("token", meta.get("langgraph_node"), text=text)
+
+                elif mode == "updates":
+                    if "__interrupt__" in chunk:
+                        intr = chunk["__interrupt__"][0].value
+                        run.status, run.interrupt = "paused", intr
+                        await sink.emit("interrupt", intr.get("node"), **intr)
+                        await db.commit()
+                        bus.publish(run_id, {"seq": None, "type": "status", "status": "paused"})
+                        return
+                    # one checkpoint per completed node: the handle time-travel will use later
+                    state = await graph.aget_state(config)
+                    for node in chunk:
+                        await sink.emit(
+                            "checkpoint",
+                            node,
+                            checkpoint_id=state.config["configurable"]["checkpoint_id"],
+                        )
 
             state = await graph.aget_state(config)
             run.output = state.values.get("vars", {})
             run.usage = _sum_usage(state.values.get("trace", []))
             run.status = "done"
+            run.finished_at = datetime.now(UTC)
             await sink.emit("run_end", output=run.output, usage=run.usage)
+        except asyncio.CancelledError:
+            run.status, run.finished_at = "cancelled", datetime.now(UTC)
+            await sink.emit("run_cancelled")
         except Exception as e:  # noqa: BLE001 - any failure ends the run with a message
             run.status, run.error = "error", f"{type(e).__name__}: {e}"
+            run.finished_at = datetime.now(UTC)
             await sink.emit("run_error", error=run.error)
         await db.commit()
+        bus.publish(run_id, {"seq": None, "type": "status", "status": run.status})

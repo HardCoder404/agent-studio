@@ -1,15 +1,17 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.db.tables import Graph, Run, RunEvent
+from app.engine import bus
 from app.engine.compiler import compile_graph
-from app.engine.executor import execute
+from app.engine.executor import start_in_background
 from app.schemas.graph import GraphSpec
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -25,6 +27,17 @@ class ResumeBody(BaseModel):
     value: Any
 
 
+def _utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)  # SQLite hands back naive datetimes
+
+
+def _duration_ms(run: Run) -> int | None:
+    if run.started_at is None:
+        return None
+    end = _utc(run.finished_at) if run.finished_at else datetime.now(UTC)
+    return int((end - _utc(run.started_at)).total_seconds() * 1000)
+
+
 def _view(run: Run) -> dict:
     return {
         "id": str(run.id),
@@ -37,6 +50,9 @@ def _view(run: Run) -> dict:
         "interrupt": run.interrupt,
         "error": run.error,
         "usage": run.usage,
+        "duration_ms": _duration_ms(run),
+        "started_at": run.started_at,
+        "finished_at": run.finished_at,
         "created_at": run.created_at,
         "updated_at": run.updated_at,
     }
@@ -57,7 +73,7 @@ async def _spec_for(db: AsyncSession, run: Run) -> GraphSpec:
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
-async def create_run(body: RunCreate, db: Db, tasks: BackgroundTasks) -> dict:
+async def create_run(body: RunCreate, db: Db) -> dict:
     graph = await db.get(Graph, body.graph_id)
     if graph is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "graph not found")
@@ -79,15 +95,19 @@ async def create_run(body: RunCreate, db: Db, tasks: BackgroundTasks) -> dict:
     db.add(run)
     await db.commit()
     await db.refresh(run)  # load server-generated timestamps before the session closes
-    tasks.add_task(execute, run.id, spec)
+    start_in_background(run.id, spec)
     return _view(run)
 
 
 @router.get("")
-async def list_runs(db: Db, graph_id: uuid.UUID | None = None, limit: int = 50) -> list[dict]:
+async def list_runs(
+    db: Db, graph_id: uuid.UUID | None = None, status_: str | None = None, limit: int = 50
+) -> list[dict]:
     q = select(Run).order_by(Run.created_at.desc()).limit(limit)
     if graph_id:
         q = q.where(Run.graph_id == graph_id)
+    if status_:
+        q = q.where(Run.status == status_)
     return [_view(r) for r in (await db.execute(q)).scalars().all()]
 
 
@@ -111,7 +131,7 @@ async def get_events(run_id: uuid.UUID, db: Db, after: int = 0) -> list[dict]:
 
 
 @router.post("/{run_id}/resume", status_code=status.HTTP_202_ACCEPTED)
-async def resume_run(run_id: uuid.UUID, body: ResumeBody, db: Db, tasks: BackgroundTasks) -> dict:
+async def resume_run(run_id: uuid.UUID, body: ResumeBody, db: Db) -> dict:
     run = await _get(db, run_id)
     if run.status != "paused":
         raise HTTPException(status.HTTP_409_CONFLICT, f"run is {run.status}, not paused")
@@ -119,5 +139,19 @@ async def resume_run(run_id: uuid.UUID, body: ResumeBody, db: Db, tasks: Backgro
     run.status = "queued"
     await db.commit()
     await db.refresh(run)
-    tasks.add_task(execute, run.id, spec, body.value)
+    start_in_background(run.id, spec, body.value)
     return _view(run)
+
+
+@router.post("/{run_id}/cancel")
+async def cancel_run(run_id: uuid.UUID, db: Db) -> dict:
+    run = await _get(db, run_id)
+    if run.status == "paused":  # nothing is executing; just close it out
+        run.status = "cancelled"
+        await db.commit()
+        await db.refresh(run)
+        bus.publish(run_id, {"seq": None, "type": "status", "status": "cancelled"})
+        return _view(run)
+    if run.status != "running" or not bus.cancel(run_id):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"run is {run.status}, nothing to cancel")
+    return {**_view(run), "status": "cancelling"}
