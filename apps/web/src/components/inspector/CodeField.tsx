@@ -1,7 +1,7 @@
 "use client";
 
-import Editor, { loader, useMonaco, type OnMount } from "@monaco-editor/react";
-import { useEffect, useRef } from "react";
+import Editor, { loader, type OnMount } from "@monaco-editor/react";
+import { useRef } from "react";
 
 type Props = {
   value: string;
@@ -11,28 +11,29 @@ type Props = {
   placeholder?: string;
 };
 
-let promptLangRegistered = false;
-if (typeof window !== "undefined") loader.init().catch(() => {});
+/** Warm the loader once per page and register the "prompt" language + theme on it. Doing this
+ *  at module level (not in a hook) means no component ever cancels the shared init promise. */
+if (typeof window !== "undefined") {
+  loader
+    .init()
+    .then((monaco) => {
+      if (monaco.languages.getLanguages().some((l: { id: string }) => l.id === "prompt")) return;
+      monaco.languages.register({ id: "prompt" });
+      monaco.languages.setMonarchTokensProvider("prompt", {
+        tokenizer: { root: [[/\{\{\s*[a-zA-Z_][\w.]*\s*\}\}/, "variable"]] },
+      });
+      monaco.editor.defineTheme("studio", {
+        base: "vs-dark",
+        inherit: true,
+        rules: [{ token: "variable", foreground: "7dd3fc", fontStyle: "bold" }],
+        colors: { "editor.background": "#0b0d12", "editorLineNumber.foreground": "#3b4252", "editor.lineHighlightBackground": "#12151c" },
+      });
+    })
+    .catch(() => {});
+}
 
-/** Monaco with a tiny "prompt" language that highlights {{variables}}. */
 export function CodeField({ value, onChange, language, height = 120 }: Props) {
-  const monaco = useMonaco();
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
-
-  useEffect(() => {
-    if (!monaco || promptLangRegistered) return;
-    promptLangRegistered = true;
-    monaco.languages.register({ id: "prompt" });
-    monaco.languages.setMonarchTokensProvider("prompt", {
-      tokenizer: { root: [[/\{\{\s*[a-zA-Z_][\w.]*\s*\}\}/, "variable"]] },
-    });
-    monaco.editor.defineTheme("studio", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [{ token: "variable", foreground: "7dd3fc", fontStyle: "bold" }],
-      colors: { "editor.background": "#0b0d12", "editorLineNumber.foreground": "#3b4252", "editor.lineHighlightBackground": "#12151c" },
-    });
-  }, [monaco]);
 
   return (
     <div className="overflow-hidden rounded-md border border-edge focus-within:border-sky-500/60">

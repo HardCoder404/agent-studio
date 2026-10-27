@@ -34,9 +34,16 @@ export function Editor() {
         if (useGraphStore.getState().issues.length === 0) setRunOpen(true);
       }
     };
+    // @monaco-editor/react cancels its loader promise when an editor unmounts mid-load; the
+    // rejection is harmless noise, keep it out of the dev overlay
+    const onRejection = (e: PromiseRejectionEvent) => {
+      if (e.reason && typeof e.reason === "object" && (e.reason as { type?: string }).type === "cancelation") e.preventDefault();
+    };
+    window.addEventListener("unhandledrejection", onRejection);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("unhandledrejection", onRejection);
       useRunStore.getState().clear();
     };
   }, []);
