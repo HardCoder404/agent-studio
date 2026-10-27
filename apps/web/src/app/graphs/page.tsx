@@ -53,6 +53,12 @@ export default function GraphsPage() {
   const [graphs, setGraphs] = useState<GraphSummary[] | null>(null);
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
+  type View = "overview" | "graphs" | "templates" | "runs" | "guide";
+  const [view, setViewState] = useState<View>("overview");
+  const setView = (v: View) => {
+    setViewState(v);
+    window.history.replaceState(null, "", v === "overview" ? "/graphs" : `/graphs#${v}`);
+  };
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"updated" | "name" | "nodes" | "issues">("updated");
   const [page, setPage] = useState(0);
@@ -65,9 +71,12 @@ export default function GraphsPage() {
 
   const refresh = () => api.listGraphs().then(setGraphs).catch((e) => setError(String(e)));
   useEffect(() => {
+    // the hash is not available during SSR; pick the view up after hydration
+    const h = window.location.hash.replace("#", "");
+    if (["graphs", "templates", "runs", "guide"].includes(h)) queueMicrotask(() => setViewState(h as View));
     refresh();
     api.listTemplates().then(setTemplates).catch(() => {});
-    fetch(`${API_URL}/runs?limit=8`).then((r) => r.json()).then(setRuns).catch(() => {});
+    fetch(`${API_URL}/runs?limit=40`).then((r) => r.json()).then(setRuns).catch(() => {});
     fetch(`${API_URL}/health`).then((r) => r.json()).then(setHealth).catch(() => {});
   }, []);
 
@@ -91,7 +100,7 @@ export default function GraphsPage() {
     }
   };
 
-  const PAGE = 10;
+  const PAGE = view === "overview" ? 5 : 10;
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const list = (graphs ?? []).filter((g) => (!needle || g.name.toLowerCase().includes(needle)) && (!onlyReady || g.issues === 0));
@@ -121,9 +130,10 @@ export default function GraphsPage() {
       <div aria-hidden className="pointer-events-none absolute -right-40 top-80 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
 
       <div className="relative mx-auto grid max-w-[1600px] grid-cols-1 gap-8 px-6 pt-8 pb-24 lg:grid-cols-[13rem_minmax(0,1fr)_19rem]">
-        <SideNav />
+        <SideNav view={view} setView={setView} />
         <div className="min-w-0">
         {/* hero */}
+        {view === "overview" && (
         <header id="how" className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-edge bg-panel/60 px-3 py-1 text-[11px] font-medium tracking-wide text-muted backdrop-blur">
@@ -156,11 +166,12 @@ export default function GraphsPage() {
             </button>
           </div>
         </header>
+        )}
 
         {error && <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
 
         {/* templates */}
-        {templates.length > 0 && (
+        {templates.length > 0 && (view === "overview" || view === "templates") && (
           <section id="templates" className="mb-14 scroll-mt-8">
             <div className="mb-4 flex items-baseline justify-between">
               <h2 className="text-sm font-semibold tracking-tight">Start from a template</h2>
@@ -190,6 +201,9 @@ export default function GraphsPage() {
         )}
 
         {/* graphs */}
+        {view === "runs" && <RunsTable runs={runs} graphs={graphs ?? []} />}
+        {view === "guide" && <Guide />}
+        {(view === "overview" || view === "graphs") && (
         <section id="graphs" className="scroll-mt-8">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold tracking-tight">Your graphs</h2>
@@ -287,19 +301,21 @@ export default function GraphsPage() {
             </div>
           </div>
         </section>
+        )}
         </div>
-        <RightRail runs={runs} graphs={graphs ?? []} health={health} />
+        {view === "overview" ? <RightRail runs={runs.slice(0, 8)} graphs={graphs ?? []} health={health} /> : <div className="hidden lg:block" />}
       </div>
     </main>
   );
 }
 
-function SideNav() {
-  const items: [LucideIcon, string, string][] = [
-    [LayoutGrid, "Graphs", "#graphs"],
-    [Sparkles, "Templates", "#templates"],
-    [Activity, "Recent runs", "#runs"],
-    [BookOpen, "How it works", "#how"],
+function SideNav({ view, setView }: { view: string; setView: (v: "overview" | "graphs" | "templates" | "runs" | "guide") => void }) {
+  const items: [LucideIcon, string, "overview" | "graphs" | "templates" | "runs" | "guide"][] = [
+    [Workflow, "Overview", "overview"],
+    [LayoutGrid, "Graphs", "graphs"],
+    [Sparkles, "Templates", "templates"],
+    [Activity, "Runs", "runs"],
+    [BookOpen, "How it works", "guide"],
   ];
   return (
     <aside className="hidden lg:block">
@@ -311,10 +327,10 @@ function SideNav() {
           Agent Studio
         </div>
         <nav className="space-y-0.5">
-          {items.map(([Icon, label, href]) => (
-            <a key={label} href={href} className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-fg">
+          {items.map(([Icon, label, key]) => (
+            <button key={key} onClick={() => setView(key)} className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${view === key ? "bg-sky-500/10 text-sky-200 ring-1 ring-sky-500/20" : "text-muted hover:bg-white/5 hover:text-fg"}`}>
               <Icon size={15} /> {label}
-            </a>
+            </button>
           ))}
         </nav>
         <div className="rounded-xl border border-edge bg-panel/60 p-3 text-[11px] leading-relaxed text-muted">
@@ -322,12 +338,6 @@ function SideNav() {
           <div><kbd className="rounded border border-edge px-1 font-mono">⌘K</kbd> commands</div>
           <div><kbd className="rounded border border-edge px-1 font-mono">⌘↵</kbd> run graph</div>
           <div><kbd className="rounded border border-edge px-1 font-mono">⌘Z</kbd> undo · <kbd className="rounded border border-edge px-1 font-mono">⌫</kbd> delete</div>
-        </div>
-        <div className="space-y-2 rounded-xl border border-edge bg-panel/60 p-3 text-[11px] text-muted">
-          <div className="flex items-center gap-1.5 font-medium text-fg"><BookOpen size={12} /> How it works</div>
-          {["Compose nodes on the canvas", "Run; answer human gates live", "Scrub checkpoints, edit state, fork", "Eval, sweep models, ship"].map((t, i) => (
-            <div key={t} className="flex gap-2"><span className="text-sky-300">{i + 1}.</span> {t}</div>
-          ))}
         </div>
       </div>
     </aside>
@@ -392,5 +402,97 @@ function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSum
         Runs cost about <b className="text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
       </section>
     </aside>
+  );
+}
+
+function RunsTable({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }) {
+  const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
+  const [filter, setFilter] = useState<string>("");
+  const rows = runs.filter((r) => !filter || r.status === filter);
+  const cost = rows.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
+  return (
+    <section className="scroll-mt-8">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-sm font-semibold tracking-tight">Runs across all graphs</h2>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="rounded-lg border border-edge bg-panel/60 px-2 py-1.5 text-xs text-fg">
+          <option value="">all statuses</option>
+          {["done", "paused", "running", "error", "cancelled"].map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-edge bg-panel">
+        <table className="w-full text-sm">
+          <thead className="bg-white/[.02] text-[11px] uppercase tracking-wider text-muted">
+            <tr>
+              <th className="w-1/2 px-3 py-2.5 text-left font-medium">Graph</th>
+              <th className="px-3 py-2.5 text-left font-medium">Status</th>
+              <th className="px-3 py-2.5 text-right font-medium">Time</th>
+              <th className="px-3 py-2.5 text-right font-medium">Calls</th>
+              <th className="px-3 py-2.5 text-right font-medium">Cost</th>
+              <th className="px-3 py-2.5 text-left font-medium">Started</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!rows.length && <tr><td colSpan={6} className="px-3 py-6 text-center text-xs text-muted">No runs yet. Open a graph and press Run.</td></tr>}
+            {rows.map((r) => (
+              <tr key={r.id} className="group border-t border-edge/70 transition hover:bg-white/[.03]">
+                <td className="max-w-0 px-3 py-2">
+                  <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2">
+                    <span className="truncate font-medium text-fg group-hover:text-sky-200">{nameOf[r.graph_id] ?? "deleted graph"}</span>
+                    {r.parent_run_id && <span className="shrink-0 text-[10px] text-violet-300">fork</span>}
+                    <span className="shrink-0 font-mono text-[10px] text-muted/60">{r.id.slice(0, 8)}</span>
+                  </Link>
+                </td>
+                <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5 text-xs text-muted"><span className={`h-2 w-2 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} /> {r.status}</span></td>
+                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)} s` : "–"}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">{r.usage?.llm_calls ?? 0}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">${(r.usage?.cost_usd ?? 0).toFixed(6)}</td>
+                <td className="px-3 py-2 whitespace-nowrap text-xs text-muted">{new Date(r.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex items-center justify-between border-t border-edge px-3 py-2 text-xs text-muted">
+          <span>{rows.length} runs</span>
+          <span>total cost <b className="text-fg">${cost.toFixed(5)}</b></span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Guide() {
+  const steps: [LucideIcon, string, string][] = [
+    [LayoutGrid, "Compose", "Drag nodes onto the canvas: model, tool, router, human gate, code. Prompts reference variables as {{name}}; the inspector shows what is in scope."],
+    [Play, "Run", "Press ⌘↵. Tokens stream inside the node that generates them, edges light up as data flows, and human nodes pause the run with a card showing exactly what to approve."],
+    [Activity, "Time-travel", "Open the State tab: scrub through every checkpoint, see what each step changed, edit a variable and fork a new run from that step. Compare the two side by side."],
+    [ShieldCheck, "Eval and ship", "Build a dataset, pick scorers, run an eval; failures light up the node that caused them. Sweep candidate models for a node and apply the cheapest one that still passes."],
+  ];
+  return (
+    <section className="space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold tracking-tight">How it works</h2>
+        <p className="mt-1 text-sm text-muted">Four loops, one canvas. Everything below runs on free tiers.</p>
+      </div>
+      <ol className="grid gap-4 md:grid-cols-2">
+        {steps.map(([Icon, title, body], i) => (
+          <li key={title} className="rounded-2xl border border-edge bg-panel p-5">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-sky-400/10 text-sky-300"><Icon size={14} /></span><span className="text-muted">{i + 1}.</span> {title}</div>
+            <p className="text-[13px] leading-relaxed text-muted">{body}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-edge bg-panel p-5 text-[13px] text-muted">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Keyboard size={14} /> Shortcuts</div>
+          {[["⌘K", "command palette"], ["⌘↵", "run the graph"], ["⌘Z / ⇧⌘Z", "undo / redo"], ["⌫", "delete selection"], ["drag from a handle", "connect nodes"]].map(([k, v]) => (
+            <div key={k} className="flex justify-between border-t border-edge/60 py-1.5 first:border-0"><span>{v}</span><kbd className="rounded border border-edge px-1.5 font-mono text-[11px] text-fg">{k}</kbd></div>
+          ))}
+        </div>
+        <div className="rounded-2xl border border-edge bg-panel p-5 text-[13px] leading-relaxed text-muted">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Cpu size={14} /> Under the hood</div>
+          Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted; forking creates a new checkpoint whose parent is the one you edited. Console, timeline, cost and traces all derive from the same event log.
+        </div>
+      </div>
+    </section>
   );
 }
