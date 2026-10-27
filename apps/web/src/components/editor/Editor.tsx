@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Canvas } from "@/components/canvas/Canvas";
 import { BottomPanel } from "@/components/layout/BottomPanel";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { Inspector } from "@/components/layout/Inspector";
 import { Palette } from "@/components/layout/Palette";
 import { TopBar } from "@/components/layout/TopBar";
@@ -45,6 +46,7 @@ export function Editor() {
         </div>
         <BottomPanel />
       </div>
+      <CommandPalette />
     </ReactFlowProvider>
   );
 }

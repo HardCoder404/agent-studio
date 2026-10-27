@@ -1,6 +1,8 @@
 "use client";
 
 import { useReactFlow } from "@xyflow/react";
+import { Search } from "lucide-react";
+import { useState } from "react";
 import { Bot, Code2, Flag, GitFork, Play, UserRound, Wrench, type LucideIcon } from "lucide-react";
 import { DRAG_MIME } from "@/components/canvas/Canvas";
 import { nodeMeta, type NodeType } from "@/lib/types";
@@ -18,6 +20,8 @@ const items: { type: NodeType; icon: LucideIcon; color: string }[] = [
 
 export function Palette() {
   const addNode = useGraphStore((s) => s.addNode);
+  const [q, setQ] = useState("");
+  const visible = items.filter(({ type }) => (nodeMeta[type].title + " " + nodeMeta[type].hint).toLowerCase().includes(q.toLowerCase()));
   const { screenToFlowPosition, fitView } = useReactFlow();
 
   const addAtCenter = (type: NodeType) => {
@@ -38,8 +42,12 @@ export function Palette() {
   return (
     <aside className="flex w-52 shrink-0 flex-col border-r border-edge bg-panel">
       <div className="px-3 pt-3 pb-2 text-[11px] font-medium uppercase tracking-wider text-muted">Nodes</div>
+      <label className="mx-2 mb-1 flex items-center gap-1.5 rounded-md border border-edge bg-canvas px-2 py-1 text-xs text-muted focus-within:border-sky-500/60">
+        <Search size={12} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full bg-transparent text-fg outline-none placeholder:text-muted/60" />
+      </label>
       <div className="flex flex-col gap-1 px-2">
-        {items.map(({ type, icon: Icon, color }) => (
+        {visible.map(({ type, icon: Icon, color }) => (
           <button
             key={type}
             draggable
@@ -56,7 +64,7 @@ export function Palette() {
           </button>
         ))}
       </div>
-      <p className="mt-auto px-3 pb-3 text-[11px] leading-relaxed text-muted">Drag onto the canvas, or click to add. ⌘Z undo, ⌫ delete.</p>
+      <p className="mt-auto px-3 pb-3 text-[11px] leading-relaxed text-muted">Drag onto the canvas, or click to add. ⌘K commands, ⌘Z undo, ⌫ delete.</p>
     </aside>
   );
 }

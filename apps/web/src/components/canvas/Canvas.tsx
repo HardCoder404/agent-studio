@@ -72,6 +72,11 @@ export function Canvas() {
       fitView
       fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
       deleteKeyCode={["Backspace", "Delete"]}
+      onError={(code, message) => {
+        // 008 = edge points at a handle that is not measured yet; happens for one frame after a
+        // router branch is renamed, then updateNodeInternals catches up.
+        if (code !== "008") console.warn(`[React Flow ${code}] ${message}`);
+      }}
       defaultEdgeOptions={{ type: "smoothstep", style: { strokeWidth: 1.5 } }}
       className="bg-canvas"
     >

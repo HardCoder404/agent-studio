@@ -44,6 +44,8 @@ type Actions = {
   updateNode: (id: string, patch: Partial<NodeData>) => void;
   updateConfig: (id: string, patch: Record<string, unknown>) => void;
   removeNode: (id: string) => void;
+  renameBranch: (nodeId: string, from: string, to: string) => void;
+  removeBranch: (nodeId: string, label: string) => void;
   select: (id: string | null) => void;
   markSaved: (spec: GraphSpec) => void;
   markSaving: () => void;
@@ -140,6 +142,27 @@ export const useGraphStore = create<State & Actions>()(
           save: "dirty",
         })),
       select: (id) => set({ selectedId: id }),
+
+      renameBranch: (nodeId, from, to) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n;
+            const cfg = n.data.config as { branches: { label: string; when: string }[] };
+            return { ...n, data: { ...n.data, config: { ...cfg, branches: cfg.branches.map((b) => (b.label === from ? { ...b, label: to } : b)) } } };
+          }),
+          edges: s.edges.map((e) => (e.source === nodeId && e.sourceHandle === from ? { ...e, sourceHandle: to, label: to } : e)),
+          save: "dirty",
+        })),
+      removeBranch: (nodeId, label) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n;
+            const cfg = n.data.config as { branches: { label: string; when: string }[] };
+            return { ...n, data: { ...n.data, config: { ...cfg, branches: cfg.branches.filter((b) => b.label !== label) } } };
+          }),
+          edges: s.edges.filter((e) => !(e.source === nodeId && e.sourceHandle === label)),
+          save: "dirty",
+        })),
 
       markSaving: () => set({ save: "saving" }),
       markSaved: (spec) => set((s) => (s.save === "saving" ? { save: "saved", version: spec.version, issues: spec.issues, saveError: null } : { version: spec.version, issues: spec.issues })),

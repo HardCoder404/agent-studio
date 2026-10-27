@@ -1,6 +1,7 @@
 "use client";
 
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
+import { useEffect } from "react";
 import { Bot, Braces, Code2, Flag, GitFork, Play, UserRound, Wrench } from "lucide-react";
 import type { NodeTypes } from "@xyflow/react";
 import type { RouterConfig } from "@/lib/types";
@@ -64,6 +65,9 @@ function CodeNode({ id, data, selected }: StudioNodeProps) {
 function RouterNode({ id, data, selected }: StudioNodeProps) {
   const c = data.config as RouterConfig;
   const branches = c.branches ?? [];
+  const labels = branches.map((b) => b.label).join("\u0000");
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => updateNodeInternals(id), [id, labels, updateNodeInternals]);
   return (
     <div className="relative">
       <NodeShell id={id} selected={selected} icon={GitFork} tone="violet" title={data.label} subtitle={c.mode === "llm" ? "asks a model" : "rule"} output={false}>
