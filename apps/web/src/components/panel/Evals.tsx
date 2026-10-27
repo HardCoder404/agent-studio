@@ -1,10 +1,11 @@
 "use client";
 
-import { Flame, Play, Plus, Square, Trash2 } from "lucide-react";
+import { Flame, Play, Plus, Square, Trash2, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { allKeys, inputKeys } from "@/lib/graphUtils";
-import type { Dataset, DatasetRow, EvalResultRow, EvalRunInfo, ScorerKind, ScorerSpec } from "@/lib/types";
+import type { Dataset, DatasetRow, EvalResultRow, EvalRunInfo, ScorerKind, ScorerSpec, Sweep } from "@/lib/types";
+import { useModels } from "@/lib/useCatalog";
 import { useGraphStore } from "@/store/graph";
 import { useRunStore } from "@/store/run";
 
@@ -32,6 +33,7 @@ export function Evals() {
   const [open, setOpen] = useState<(EvalRunInfo & { results: EvalResultRow[] }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const setHeat = useRunStore((s) => s.setHeat);
+  const [sweep, setSweep] = useState<Sweep | null>(null);
 
   const refresh = useCallback(() => {
     if (!graphId) return Promise.resolve();
@@ -71,6 +73,7 @@ export function Evals() {
 
   const openEval = async (id: string) => {
     const ev = await api.getEval(id);
+    setSweep(null);
     setOpen(ev);
     setHeat(ev.summary && "node_failure_share" in ev.summary ? ev.summary.node_failure_share : null);
   };
@@ -125,6 +128,8 @@ export function Evals() {
         </button>
         {error && <p className="text-rose-300">{error}</p>}
 
+        <SweepLauncher graphId={graphId} dsId={dsId} scorers={scorers} disabled={!ds || !ds.rows.length || !scorers.length || issues > 0} onStarted={(sw) => { setOpen(null); setSweep(sw); }} />
+
         <div>
           <div className="mb-1 text-muted">Past evals</div>
           <ul className="divide-y divide-edge/60 rounded-md border border-edge bg-canvas">
@@ -143,8 +148,9 @@ export function Evals() {
       {/* right: results */}
       <div className="min-h-0 overflow-y-auto">
         {editing && graphId && <DatasetEditor graphId={graphId} dataset={ds} inputs={inputs} onDone={(d) => { setEditing(false); if (d) setDsId(d.id); refresh(); }} />}
-        {!editing && !open && <p className="px-3 py-2 text-xs text-muted">Pick a dataset and scorers, then run an eval. Results and the node heatmap appear here.</p>}
+        {!editing && !open && !sweep && <p className="px-3 py-2 text-xs text-muted">Pick a dataset and scorers, then run an eval. Results and the node heatmap appear here.</p>}
         {!editing && open && <Results ev={open} onCancel={() => api.cancelEval(open.id).catch(() => {})} />}
+        {!editing && !open && sweep && <SweepView sweep={sweep} onRefresh={(sw) => setSweep(sw)} onOpenVariant={(id) => { setSweep(null); openEval(id); }} />}
       </div>
     </div>
   );
@@ -303,6 +309,127 @@ function Results({ ev, onCancel }: { ev: EvalRunInfo & { results: EvalResultRow[
               <td className="py-1 pr-3 text-muted">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)} s` : ""}</td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Pick an LLM node and candidate models; runs one eval per model so they can be ranked. */
+function SweepLauncher({ graphId, dsId, scorers, disabled, onStarted }: { graphId: string; dsId: string | null; scorers: ScorerSpec[]; disabled: boolean; onStarted: (s: Sweep) => void }) {
+  const nodes = useGraphStore((s) => s.nodes);
+  const llmNodes = nodes.filter((n) => n.type === "llm");
+  const models = useModels().filter((m) => m.available);
+  const [nodeId, setNodeId] = useState<string>(llmNodes[0]?.id ?? "");
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const chosen = picked ?? models.slice(0, 3).map((m) => m.id);
+
+  const start = async () => {
+    if (!dsId || !nodeId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.createSweep({ graph_id: graphId, dataset_id: dsId, scorers, node_id: nodeId, models: chosen });
+      onStarted({ sweep_id: r.sweep_id, node_id: r.node_id, variants: r.evals, recommended: null, done: false });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!llmNodes.length) return null;
+  return (
+    <div className="rounded-md border border-edge bg-canvas/60 p-2">
+      <div className="mb-1 flex items-center gap-1 text-muted">
+        <Zap size={11} className="text-amber-300" /> Model sweep
+        <span className="ml-auto text-[10px] text-muted/70">same eval, one run per model</span>
+      </div>
+      <select value={nodeId} onChange={(e) => setNodeId(e.target.value)} className="mb-1 w-full rounded border border-edge bg-canvas px-1.5 py-0.5 text-fg">
+        {llmNodes.map((n) => (
+          <option key={n.id} value={n.id}>
+            {n.data.label}
+          </option>
+        ))}
+      </select>
+      <div className="mb-1.5 flex flex-wrap gap-1">
+        {models.map((m) => {
+          const on = chosen.includes(m.id);
+          return (
+            <button key={m.id} onClick={() => setPicked(on ? chosen.filter((x) => x !== m.id) : [...chosen, m.id])} className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${on ? "bg-amber-500/20 text-amber-200" : "bg-white/5 text-muted hover:text-fg"}`} title={`${m.tier} · $${m.input_per_m}/$${m.output_per_m} per 1M`}>
+              {m.id.replace(/^groq\//, "")}
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={start} disabled={disabled || busy || !chosen.length} className="flex w-full items-center justify-center gap-1 rounded-md bg-amber-500/15 px-2 py-1 text-amber-200 hover:bg-amber-500/25 disabled:opacity-40">
+        <Zap size={11} /> {busy ? "Starting…" : `Sweep ${chosen.length} models`}
+      </button>
+      {error && <p className="mt-1 text-rose-300">{error}</p>}
+    </div>
+  );
+}
+
+/** Ranked table of sweep variants with a one-click "apply" that sets the node's model. */
+function SweepView({ sweep, onRefresh, onOpenVariant }: { sweep: Sweep; onRefresh: (s: Sweep) => void; onOpenVariant: (id: string) => void }) {
+  const updateConfig = useGraphStore((s) => s.updateConfig);
+  const label = useGraphStore((s) => s.nodes.find((n) => n.id === sweep.node_id)?.data.label ?? sweep.node_id);
+  const current = useGraphStore((s) => (s.nodes.find((n) => n.id === sweep.node_id)?.data.config as { model?: string } | undefined)?.model);
+
+  useEffect(() => {
+    if (sweep.done) return;
+    const id = setInterval(() => api.getSweep(sweep.sweep_id).then(onRefresh).catch(() => {}), 1500);
+    return () => clearInterval(id);
+  }, [sweep.sweep_id, sweep.done, onRefresh]);
+
+  const pct = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v * 100)}%`);
+  return (
+    <div className="text-[11px]">
+      <div className="flex items-center gap-3 border-b border-edge px-3 py-1.5">
+        <Zap size={12} className="text-amber-300" />
+        <span className="text-fg">sweep · {label}</span>
+        <span className="text-muted">{sweep.done ? "done" : "running…"}</span>
+        {sweep.recommended && (
+          <span className="ml-auto text-muted">
+            recommended <b className="font-mono text-emerald-300">{sweep.recommended.replace(/^groq\//, "")}</b> <span className="text-muted/70">(cheapest within 5 pts of the best pass rate)</span>
+          </span>
+        )}
+      </div>
+      <table className="w-full">
+        <thead className="text-muted">
+          <tr>
+            <th className="px-3 py-1 text-left font-normal">model</th>
+            <th className="py-1 text-left font-normal">status</th>
+            <th className="py-1 text-right font-normal">pass</th>
+            <th className="py-1 text-right font-normal">cost / dataset</th>
+            <th className="py-1 text-right font-normal">avg time</th>
+            <th className="py-1 pr-3 text-right font-normal"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {sweep.variants.map((v) => {
+            const s = "pass_rate" in v.summary ? v.summary : null;
+            const rec = v.variant === sweep.recommended;
+            return (
+              <tr key={v.id} className={`border-t border-edge/60 ${rec ? "bg-emerald-500/5" : ""}`}>
+                <td className="px-3 py-1 font-mono text-fg">
+                  {v.variant?.replace(/^groq\//, "")} {v.variant === current && <span className="text-muted">(current)</span>} {rec && <span className="text-emerald-300">★</span>}
+                </td>
+                <td className="py-1 text-muted">{v.status}{v.status === "running" ? ` ${v.completed}/${v.total}` : ""}</td>
+                <td className="py-1 text-right text-fg">{pct(s?.pass_rate)}</td>
+                <td className="py-1 text-right text-muted">{s ? `$${s.cost_usd.toFixed(6)}` : "–"}</td>
+                <td className="py-1 text-right text-muted">{s ? `${(s.avg_duration_ms / 1000).toFixed(1)} s` : "–"}</td>
+                <td className="py-1 pr-3 text-right">
+                  <button onClick={() => onOpenVariant(v.id)} className="mr-2 text-muted hover:text-fg">rows</button>
+                  {v.variant && v.variant !== current && v.status === "done" && (
+                    <button onClick={() => updateConfig(sweep.node_id, { model: v.variant })} className="rounded bg-sky-500/20 px-1.5 py-0.5 text-sky-200 hover:bg-sky-500/30">apply</button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -204,6 +204,9 @@ export type EvalRunInfo = {
   dataset_id: string;
   dataset_name?: string;
   scorers: ScorerSpec[];
+  sweep_id: string | null;
+  node_id: string | null;
+  variant: string | null;
   status: "queued" | "running" | "done" | "error" | "cancelled";
   total: number;
   completed: number;
@@ -224,3 +227,17 @@ export type EvalResultRow = {
   input?: Record<string, unknown>;
   expected?: unknown;
 };
+
+export type Sweep = { sweep_id: string; node_id: string; variants: EvalRunInfo[]; recommended: string | null; done: boolean };
+export type SweepSummary = { sweep_id: string; node_id: string; models: string[]; created_at: string; status: "done" | "running" };
+
+export type StatBucket = {
+  calls: number;
+  cost_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  avg_ms: number | null;
+  p50_ms: number | null;
+  p95_ms: number | null;
+};
+export type GraphStats = { runs: number; nodes: Record<string, StatBucket>; models: Record<string, StatBucket>; total: StatBucket };

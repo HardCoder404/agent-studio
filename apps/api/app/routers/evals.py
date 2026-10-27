@@ -113,6 +113,9 @@ def _ev(e: EvalRun, dataset_name: str | None = None) -> dict:
         "dataset_id": str(e.dataset_id),
         "dataset_name": dataset_name,
         "scorers": e.scorers,
+        "sweep_id": str(e.sweep_id) if e.sweep_id else None,
+        "node_id": e.node_id,
+        "variant": e.variant,
         "status": e.status,
         "total": e.total,
         "completed": e.completed,
@@ -169,6 +172,36 @@ async def list_evals(db: Db, graph_id: uuid.UUID | None = None, limit: int = 30)
     return [_ev(e, name) for e, name in (await db.execute(q)).all()]
 
 
+@evals.get("/sweeps")
+async def list_sweeps(db: Db, graph_id: uuid.UUID) -> list[dict]:
+    rows = (
+        (
+            await db.execute(
+                select(EvalRun)
+                .where(EvalRun.graph_id == graph_id, EvalRun.sweep_id.is_not(None))
+                .order_by(EvalRun.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by: dict[str, list[EvalRun]] = {}
+    for e in rows:
+        by.setdefault(str(e.sweep_id), []).append(e)
+    return [
+        {
+            "sweep_id": sid,
+            "node_id": evs[0].node_id,
+            "models": [e.variant for e in evs],
+            "created_at": evs[0].created_at,
+            "status": "done"
+            if all(e.status in ("done", "error", "cancelled") for e in evs)
+            else "running",
+        }
+        for sid, evs in by.items()
+    ]
+
+
 @evals.get("/{eval_id}")
 async def get_eval(eval_id: uuid.UUID, db: Db) -> dict:
     ev = await db.get(EvalRun, eval_id)
@@ -214,3 +247,110 @@ async def cancel_eval(eval_id: uuid.UUID, db: Db) -> dict:
     if ev.status != "running" or not bus.cancel(eval_id):
         raise HTTPException(status.HTTP_409_CONFLICT, f"eval is {ev.status}, nothing to cancel")
     return {**_ev(ev), "status": "cancelling"}
+
+
+# ---- model sweeps ----------------------------------------------------------------------
+
+
+class SweepBody(BaseModel):
+    graph_id: uuid.UUID
+    dataset_id: uuid.UUID
+    scorers: list[ScorerSpec] = Field(min_length=1)
+    node_id: str
+    models: list[str] = Field(min_length=1, max_length=6)
+
+
+@evals.post("/sweep", status_code=status.HTTP_202_ACCEPTED)
+async def create_sweep(body: SweepBody, db: Db) -> dict:
+    """Run the same eval once per candidate model for one LLM node, so the models can be ranked
+    on accuracy and cost. Each variant is an ordinary eval run tagged with the sweep id."""
+    from app.llm.catalog import CATALOG
+
+    graph = await db.get(Graph, body.graph_id)
+    if graph is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "graph not found")
+    ds = await db.get(Dataset, body.dataset_id)
+    if ds is None or not ds.rows:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "dataset not found or empty")
+    spec = GraphSpec.model_validate(graph.spec)
+    if issues := spec.lint_issues():
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {"message": "graph has unresolved issues", "issues": [i.model_dump() for i in issues]},
+        )
+    node = next((n for n in spec.nodes if n.id == body.node_id), None)
+    if node is None or node.type != "llm":
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"{body.node_id} is not a model node"
+        )
+    unknown = [m for m in body.models if m not in CATALOG]
+    if unknown:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown models {unknown}")
+
+    sweep_id = uuid.uuid4()
+    out = []
+    jobs: list[tuple[uuid.UUID, GraphSpec]] = []
+    for model in body.models:
+        variant = spec.model_copy(deep=True)
+        target = next(n for n in variant.nodes if n.id == body.node_id)
+        target.config.model = model
+        ev = EvalRun(
+            graph_id=graph.id,
+            graph_version=graph.version,
+            dataset_id=ds.id,
+            scorers=[s.model_dump() for s in body.scorers],
+            sweep_id=sweep_id,
+            node_id=body.node_id,
+            variant=model,
+            status="queued",
+            total=len(ds.rows),
+        )
+        db.add(ev)
+        await db.commit()
+        await db.refresh(ev)
+        jobs.append((ev.id, variant))
+        out.append(_ev(ev, ds.name))
+
+    async def run_all() -> None:
+        # one variant at a time: keeps free-tier rate limits happy and makes latencies comparable
+        for ev_id, variant_spec in jobs:
+            await execute_eval(ev_id, variant_spec)
+
+    bus.track(sweep_id, asyncio.create_task(run_all()))
+    return {"sweep_id": str(sweep_id), "node_id": body.node_id, "evals": out}
+
+
+def _recommend(variants: list[dict], tolerance: float = 0.05) -> str | None:
+    """Cheapest model whose pass rate is within `tolerance` of the best one."""
+    done = [
+        v for v in variants if v["status"] == "done" and v["summary"].get("pass_rate") is not None
+    ]
+    if not done:
+        return None
+    best = max(v["summary"]["pass_rate"] for v in done)
+    good = [v for v in done if v["summary"]["pass_rate"] >= best - tolerance]
+    return min(good, key=lambda v: (v["summary"]["cost_usd"], v["summary"]["avg_duration_ms"]))[
+        "variant"
+    ]
+
+
+@evals.get("/sweeps/{sweep_id}")
+async def get_sweep(sweep_id: uuid.UUID, db: Db) -> dict:
+    rows = (
+        await db.execute(
+            select(EvalRun, Dataset.name)
+            .join(Dataset, Dataset.id == EvalRun.dataset_id, isouter=True)
+            .where(EvalRun.sweep_id == sweep_id)
+            .order_by(EvalRun.created_at)
+        )
+    ).all()
+    if not rows:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "sweep not found")
+    variants = [_ev(e, name) for e, name in rows]
+    return {
+        "sweep_id": str(sweep_id),
+        "node_id": rows[0][0].node_id,
+        "variants": variants,
+        "recommended": _recommend(variants),
+        "done": all(v["status"] in ("done", "error", "cancelled") for v in variants),
+    }

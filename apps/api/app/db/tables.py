@@ -91,6 +91,15 @@ class EvalRun(Base):
     graph_version: Mapped[int] = mapped_column(Integer)
     dataset_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"))
     scorers: Mapped[list] = mapped_column(JSON, default=list)
+    sweep_id: Mapped[uuid.UUID | None] = mapped_column(
+        nullable=True, index=True
+    )  # groups sweep variants
+    node_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # node whose model varies
+    variant: Mapped[str | None] = mapped_column(
+        String(120), nullable=True
+    )  # model tried for that node
     status: Mapped[str] = mapped_column(
         String(16), default="queued"
     )  # queued|running|done|error|cancelled

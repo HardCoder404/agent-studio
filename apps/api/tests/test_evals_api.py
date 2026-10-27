@@ -1,11 +1,12 @@
 import asyncio
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 from app.engine import checkpointer
-from tests.fakes import script
+from tests.fakes import keyed, script
 
 EXAMPLE = json.loads(
     (Path(__file__).resolve().parents[3] / "examples" / "tweet-review.json").read_text()
@@ -38,8 +39,9 @@ async def test_dataset_crud(client):
 async def test_eval_end_to_end(client, monkeypatch):
     checkpointer.use_memory()
     monkeypatch.setattr("app.evals.runner.CONCURRENCY", 1)  # in-memory SQLite shares one connection
-    # three rows; the fake model answers drafts in order, and the judge scripted replies come after
-    script(monkeypatch, ["draft about cats", "draft about dogs", "draft about owls"])
+    # the fake answers from the prompt itself ("about: birds" -> "draft about owls"), so order never matters
+    topic = lambda p: (re.search(r"about: (\w+)", p) or re.search(r"(\w+)$", p)).group(1)
+    keyed(monkeypatch, lambda p: "draft about " + {"birds": "owls"}.get(topic(p), topic(p)))
     gid = (await client.post("/graphs", json=EXAMPLE)).json()["id"]
     rows = [
         {"input": {"topic": "cats"}, "expected": "cats", "human": "yes"},
@@ -109,3 +111,76 @@ async def test_eval_row_without_human_answer_errors(client, monkeypatch):
     ev = await wait_eval(client, r.json()["id"])
     assert ev["summary"]["errors"] == 1
     assert "human" in ev["results"][0]["error"]
+
+
+async def test_model_sweep_and_recommendation(client, monkeypatch):
+    checkpointer.use_memory()
+    monkeypatch.setattr("app.evals.runner.CONCURRENCY", 1)
+    # every variant drafts correctly, so pass rates tie and the cheapest model wins
+    keyed(monkeypatch, lambda p: "draft about " + re.search(r"about: (\w+)", p).group(1))
+    gid = (await client.post("/graphs", json=EXAMPLE)).json()["id"]
+    rows = [
+        {"input": {"topic": "cats"}, "expected": "cats", "human": "yes"},
+        {"input": {"topic": "dogs"}, "expected": "dogs", "human": "yes"},
+    ]
+    did = (
+        await client.post("/datasets", json={"graph_id": gid, "name": "t", "rows": rows})
+    ).json()["id"]
+    r = await client.post(
+        "/evals/sweep",
+        json={
+            "graph_id": gid,
+            "dataset_id": did,
+            "scorers": [{"kind": "contains", "key": "draft"}],
+            "node_id": "write",
+            "models": ["groq/openai/gpt-oss-120b", "groq/openai/gpt-oss-20b"],
+        },
+    )
+    assert r.status_code == 202, r.text
+    sid = r.json()["sweep_id"]
+    assert [e["variant"] for e in r.json()["evals"]] == [
+        "groq/openai/gpt-oss-120b",
+        "groq/openai/gpt-oss-20b",
+    ]
+    for _ in range(200):
+        sw = (await client.get(f"/evals/sweeps/{sid}")).json()
+        if sw["done"]:
+            break
+        await asyncio.sleep(0.03)
+    assert sw["done"] and all(v["status"] == "done" for v in sw["variants"])
+    assert all(v["summary"]["pass_rate"] == 1.0 for v in sw["variants"])
+    assert sw["recommended"] == "groq/openai/gpt-oss-20b"  # same accuracy, cheaper
+    assert (await client.get(f"/evals/sweeps?graph_id={gid}")).json()[0]["models"] == [
+        "groq/openai/gpt-oss-120b",
+        "groq/openai/gpt-oss-20b",
+    ]
+    # not an llm node
+    r = await client.post(
+        "/evals/sweep",
+        json={
+            "graph_id": gid,
+            "dataset_id": did,
+            "scorers": [{"kind": "contains", "key": "draft"}],
+            "node_id": "review",
+            "models": ["groq/openai/gpt-oss-20b"],
+        },
+    )
+    assert r.status_code == 422
+
+
+async def test_graph_stats(client, monkeypatch):
+    checkpointer.use_memory()
+    script(monkeypatch, ["d1"])
+    gid = (await client.post("/graphs", json=EXAMPLE)).json()["id"]
+    assert (await client.get(f"/graphs/{gid}/stats")).json()["runs"] == 0
+    from tests.test_runs_api import wait_for
+
+    rid = (await client.post("/runs", json={"graph_id": gid, "input": {"topic": "t"}})).json()["id"]
+    await wait_for(client, rid, "paused")
+    await client.post(f"/runs/{rid}/resume", json={"value": "yes"})
+    await wait_for(client, rid, "done")
+    st = (await client.get(f"/graphs/{gid}/stats")).json()
+    assert st["runs"] == 1
+    assert st["nodes"]["write"]["calls"] == 1 and st["nodes"]["write"]["input_tokens"] == 10
+    assert st["models"]["groq/openai/gpt-oss-20b"]["calls"] == 1
+    assert st["total"]["calls"] == 1 and st["total"]["p95_ms"] is not None

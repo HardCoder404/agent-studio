@@ -1,10 +1,11 @@
 "use client";
 
-import { BarChart3, ChevronDown, ChevronUp, FlaskConical, GitCompare, History, Terminal } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronUp, Coins, FlaskConical, GitCompare, History, Terminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { RunEvent, RunInfo } from "@/lib/types";
 import { Compare } from "@/components/panel/Compare";
+import { Cost } from "@/components/panel/Cost";
 import { Evals } from "@/components/panel/Evals";
 import { Timeline } from "@/components/panel/Timeline";
 import { useGraphStore } from "@/store/graph";
@@ -152,7 +153,7 @@ function Runs() {
 
 export function BottomPanel() {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"timeline" | "console" | "runs" | "compare" | "evals">("timeline");
+  const [tab, setTab] = useState<"timeline" | "console" | "runs" | "compare" | "evals" | "cost">("timeline");
   const runId = useRunStore((s) => s.runId);
   const status = useRunStore((s) => s.status);
 
@@ -176,6 +177,7 @@ export function BottomPanel() {
             ["runs", History, "Runs"],
             ["compare", GitCompare, "Compare"],
             ["evals", FlaskConical, "Evals"],
+            ["cost", Coins, "Cost"],
           ] as const
         ).map(([id, Icon, label]) => (
           <button
@@ -191,7 +193,7 @@ export function BottomPanel() {
         ))}
         {status && <span className="ml-auto text-muted">{status}</span>}
       </div>
-      {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : tab === "runs" ? <Runs /> : tab === "compare" ? <Compare /> : <Evals />}</div>}
+      {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : tab === "runs" ? <Runs /> : tab === "compare" ? <Compare /> : tab === "evals" ? <Evals /> : <Cost />}</div>}
     </section>
   );
 }

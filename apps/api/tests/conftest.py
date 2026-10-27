@@ -1,21 +1,17 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.db.session import Base, get_session
 from app.main import app
 
 
 @pytest.fixture
-async def client(monkeypatch):
+async def client(monkeypatch, tmp_path):
     # Each test gets a throwaway in-memory SQLite database; no Postgres needed to run tests.
-    # StaticPool: one shared connection, so concurrent sessions see the same in-memory database
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
-    )
+    # A throwaway file database per test: separate connections (unlike :memory:), no shared-cursor
+    # conflicts when the runner commits while the test polls, and it still needs no Postgres.
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/test.db")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
