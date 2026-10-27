@@ -152,3 +152,15 @@ export type RunEvent = {
   checkpoint_id?: string;
   replay?: boolean;
 };
+
+export type Checkpoint = {
+  checkpoint_id: string;
+  parent_id: string | null;
+  step: number | null;
+  node: string | null; // node whose completion produced this checkpoint (null = run input)
+  next: string[];
+  created_at: string | null;
+  vars: Record<string, unknown>;
+  trace: Record<string, unknown>[];
+  interrupted: boolean;
+};

@@ -25,7 +25,7 @@ export function Canvas() {
   );
   const { screenToFlowPosition } = useReactFlow();
   const temporal = useTemporal();
-  const nodeStatus = useRunStore((s) => s.nodeStatus);
+  const nodeStatus = useRunStore((s) => s.replayStatus ?? s.nodeStatus);
 
   // an edge "flows" while its target is running or waiting and its source has finished
   const liveEdges = useMemo(

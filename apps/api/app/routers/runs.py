@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.db.tables import Graph, Run, RunEvent
 from app.engine import bus
+from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
-from app.engine.executor import start_in_background
+from app.engine.executor import run_config, start_in_background
 from app.schemas.graph import GraphSpec
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -160,3 +161,43 @@ async def cancel_run(run_id: uuid.UUID, db: Db) -> dict:
     if run.status != "running" or not bus.cancel(run_id):
         raise HTTPException(status.HTTP_409_CONFLICT, f"run is {run.status}, nothing to cancel")
     return {**_view(run), "status": "cancelling"}
+
+
+@router.get("/{run_id}/checkpoints")
+async def get_checkpoints(run_id: uuid.UUID, db: Db) -> list[dict]:
+    """Every checkpoint of the run's thread, oldest first, with the state at that point.
+
+    `node` is the node whose completion produced the checkpoint (the previous checkpoint's
+    `next`), so the list reads as a step-by-step history of the run.
+    """
+    run = await _get(db, run_id)
+    spec = await _spec_for(db, run)
+    graph = compile_graph(spec, get_checkpointer())
+    history = [s async for s in graph.aget_state_history(run_config(run.thread_id))]
+    history.reverse()  # LangGraph yields newest first
+    out: list[dict] = []
+    prev_next: list[str] = []
+    for snap in history:
+        step = snap.metadata.get("step") if snap.metadata else None
+        if step is not None and step < 0:  # LangGraph's input checkpoint, before __start__ ran
+            prev_next = list(snap.next)
+            continue
+        cfg = snap.config["configurable"]
+        node = prev_next[0] if prev_next else None
+        out.append(
+            {
+                "checkpoint_id": cfg["checkpoint_id"],
+                "parent_id": ((snap.parent_config or {}).get("configurable") or {}).get(
+                    "checkpoint_id"
+                ),
+                "step": step,
+                "node": None if node == "__start__" else node,
+                "next": list(snap.next),
+                "created_at": snap.created_at,
+                "vars": snap.values.get("vars", {}),
+                "trace": snap.values.get("trace", []),
+                "interrupted": bool(getattr(snap, "interrupts", ())),
+            }
+        )
+        prev_next = list(snap.next)
+    return out

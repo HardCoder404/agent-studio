@@ -59,11 +59,12 @@ function Stream({ text }: { text: string }) {
 
 export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, input = true, output = true, children }: Props) {
   const issues = useGraphStore(useShallow((s) => s.issues.filter((i) => i.node === id)));
-  const status = useRunStore((s) => s.nodeStatus[id] ?? "idle");
-  const tokens = useRunStore((s) => s.tokens[id]);
+  const replaying = useRunStore((s) => s.replayStatus !== null);
+  const status = useRunStore((s) => (s.replayStatus ? (s.replayStatus[id] ?? "idle") : (s.nodeStatus[id] ?? "idle")));
+  const tokens = useRunStore((s) => (s.replayStatus ? undefined : s.tokens[id]));
   const output_ = useRunStore((s) => s.outputs[id]);
 
-  const preview = status === "done" && output_ ? Object.values(output_).find((v) => typeof v === "string") : null;
+  const preview = !replaying && status === "done" && output_ ? Object.values(output_).find((v) => typeof v === "string") : null;
 
   return (
     <div

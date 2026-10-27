@@ -1,7 +1,9 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { StatePanel } from "@/components/panel/StatePanel";
+import { useRunStore } from "@/store/run";
 import { CodeForm } from "@/components/inspector/CodeForm";
 import { Field, TextInput } from "@/components/inspector/Field";
 import { HumanForm } from "@/components/inspector/HumanForm";
@@ -12,11 +14,30 @@ import { upstreamKeys } from "@/lib/graphUtils";
 import { nodeMeta, type CodeConfig, type HumanConfig, type LLMConfig, type NodeType, type RouterConfig, type ToolConfig } from "@/lib/types";
 import { useGraphStore } from "@/store/graph";
 
-function Shell({ title, onDelete, children }: { title: string; onDelete?: () => void; children: React.ReactNode }) {
+type Tab = "node" | "state";
+
+function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const hasRun = useRunStore((s) => !!s.runId);
+  if (!hasRun) return null;
+  return (
+    <div className="flex gap-1">
+      {(["node", "state"] as const).map((t) => (
+        <button key={t} onClick={() => setTab(t)} className={`rounded px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider ${tab === t ? "bg-white/5 text-fg" : "text-muted hover:text-fg"}`}>
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Shell({ title, onDelete, tabs, children }: { title: string; onDelete?: () => void; tabs?: React.ReactNode; children: React.ReactNode }) {
   return (
     <aside className="flex w-[22rem] shrink-0 flex-col overflow-y-auto border-l border-edge bg-panel">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-muted">{title}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted">{title}</div>
+          {tabs}
+        </div>
         {onDelete && (
           <button onClick={onDelete} className="rounded p-1 text-muted hover:bg-white/5 hover:text-rose-400" title="Delete node (⌫)">
             <Trash2 size={14} />
@@ -38,10 +59,23 @@ export function Inspector() {
   const removeNode = useGraphStore((s) => s.removeNode);
 
   const vars = useMemo(() => (node ? upstreamKeys(node.id, nodes, edges) : []), [node, nodes, edges]);
+  const [tab, setTab] = useState<Tab>("node");
+  const hasRun = useRunStore((s) => !!s.runId);
+  const tabs = <Tabs tab={tab} setTab={setTab} />;
+
+  if (hasRun && tab === "state") {
+    return (
+      <Shell title="Run state" tabs={tabs}>
+        <div className="-mx-4 h-[calc(100vh-8rem)]">
+          <StatePanel />
+        </div>
+      </Shell>
+    );
+  }
 
   if (!node) {
     return (
-      <Shell title="Inspector">
+      <Shell title="Inspector" tabs={tabs}>
         <p className="text-sm text-muted">Select a node to edit it.</p>
         {issues.length > 0 && (
           <div>
@@ -66,7 +100,7 @@ export function Inspector() {
   const cfg = node.data.config;
 
   return (
-    <Shell title={nodeMeta[type].title} onDelete={type !== "start" ? () => removeNode(node.id) : undefined}>
+    <Shell title={nodeMeta[type].title} tabs={tabs} onDelete={type !== "start" ? () => removeNode(node.id) : undefined}>
       <Field label="Label" hint={node.id}>
         <TextInput value={node.data.label} onChange={(e) => updateNode(node.id, { label: e.target.value })} />
       </Field>

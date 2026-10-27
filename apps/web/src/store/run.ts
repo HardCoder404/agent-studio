@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { InterruptPayload, RunEvent, RunStatus, RunUsage } from "@/lib/types";
+import type { Checkpoint, InterruptPayload, RunEvent, RunStatus, RunUsage } from "@/lib/types";
 
 export type NodeStatus = "idle" | "running" | "done" | "error" | "paused";
 
@@ -18,6 +18,10 @@ type State = {
   error: string | null;
   lastSeq: number;
   startedAt: number | null;
+  checkpoints: Checkpoint[];
+  checkpointsFor: string | null; // run id the list belongs to
+  replayIndex: number | null; // index into checkpoints while scrubbing, null = live view
+  replayStatus: Record<string, NodeStatus> | null; // derived from replayIndex
 };
 
 type Actions = {
@@ -25,6 +29,8 @@ type Actions = {
   apply: (ev: RunEvent) => void;
   setConnected: (v: boolean) => void;
   clear: () => void;
+  setCheckpoints: (runId: string, cps: Checkpoint[]) => void;
+  setReplayIndex: (i: number | null) => void;
 };
 
 const empty: State = {
@@ -40,6 +46,10 @@ const empty: State = {
   error: null,
   lastSeq: 0,
   startedAt: null,
+  checkpoints: [],
+  checkpointsFor: null,
+  replayIndex: null,
+  replayStatus: null,
 };
 
 export const TERMINAL: RunStatus[] = ["done", "error", "cancelled"];
@@ -50,6 +60,9 @@ export const useRunStore = create<State & Actions>()((set) => ({
   begin: (runId, status = "queued") => set({ ...empty, runId, status, startedAt: Date.now() }),
   setConnected: (connected) => set({ connected }),
   clear: () => set({ ...empty }),
+  setCheckpoints: (runId, cps) => set((s) => (s.runId === runId ? { checkpoints: cps, checkpointsFor: runId } : {})),
+  setReplayIndex: (replayIndex) =>
+    set((s) => ({ replayIndex, replayStatus: replayIndex === null ? null : replayStatuses(s.checkpoints, replayIndex) })),
 
   apply: (ev) =>
     set((s) => {
@@ -59,6 +72,10 @@ export const useRunStore = create<State & Actions>()((set) => ({
         next.lastSeq = ev.seq;
       }
       if (ev.type !== "token") next.events = [...s.events, ev];
+      if (s.replayIndex !== null && ev.seq != null) {
+        next.replayIndex = null;
+        next.replayStatus = null;
+      }
       const node = ev.node ?? undefined;
 
       switch (ev.type) {
@@ -115,3 +132,13 @@ export const useRunStore = create<State & Actions>()((set) => ({
 }));
 
 export const isTerminal = (s: RunStatus | null) => !!s && TERMINAL.includes(s);
+
+/** Node statuses as they were right after checkpoint `index`: everything up to it is done,
+ *  what runs next is highlighted. Used by the replay scrubber. */
+export function replayStatuses(cps: Checkpoint[], index: number): Record<string, NodeStatus> {
+  const out: Record<string, NodeStatus> = {};
+  for (let i = 1; i <= index && i < cps.length; i++) if (cps[i].node) out[cps[i].node!] = "done";
+  const cp = cps[index];
+  if (cp) for (const n of cp.next) out[n] = cp.interrupted ? "paused" : "running";
+  return out;
+}

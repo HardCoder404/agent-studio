@@ -110,3 +110,26 @@ async def test_run_unknown_graph(client):
 async def test_tools_list(client):
     names = {t["name"] for t in (await client.get("/tools")).json()}
     assert {"echo", "http_get", "current_time"} <= names
+
+
+async def test_checkpoints_history(client, monkeypatch):
+    checkpointer.use_memory()
+    script(monkeypatch, ["d1", "d2"])
+    gid = (await client.post("/graphs", json=EXAMPLE)).json()["id"]
+    rid = (await client.post("/runs", json={"graph_id": gid, "input": {"topic": "t"}})).json()["id"]
+    await wait_for(client, rid, "paused")
+    await client.post(f"/runs/{rid}/resume", json={"value": "yes"})
+    await wait_for(client, rid, "done")
+
+    cps = (await client.get(f"/runs/{rid}/checkpoints")).json()
+    assert [c["node"] for c in cps] == [None, "start", "write", "review", "route", "end"]
+    assert cps[0]["vars"] == {"topic": "t"}
+    assert cps[2]["vars"]["draft"] == "d1"
+    assert "decision" not in cps[2]["vars"] and cps[3]["vars"]["decision"] == "yes"
+    assert cps[-1]["next"] == []
+    assert all(c["checkpoint_id"] for c in cps)
+    assert cps[1]["parent_id"] == cps[0]["checkpoint_id"]
+    # the executor's checkpoint events point at ids that exist in the history
+    events = (await client.get(f"/runs/{rid}/events")).json()
+    ids = {c["checkpoint_id"] for c in cps}
+    assert all(e["checkpoint_id"] in ids for e in events if e["type"] == "checkpoint")

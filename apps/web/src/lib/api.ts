@@ -1,4 +1,4 @@
-import type { GraphSpec, GraphSummary, ModelInfo, RunEvent, RunInfo, SpecEdge, SpecNode, ToolInfo } from "./types";
+import type { Checkpoint, GraphSpec, GraphSummary, ModelInfo, RunEvent, RunInfo, SpecEdge, SpecNode, ToolInfo } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const WS_URL = API_URL.replace(/^http/, "ws");
@@ -38,6 +38,7 @@ export const api = {
   listRuns: (graphId: string) => request<RunInfo[]>(`/runs?graph_id=${graphId}&limit=30`),
   getRun: (id: string) => request<RunInfo>(`/runs/${id}`),
   getRunEvents: (id: string) => request<RunEvent[]>(`/runs/${id}/events`),
+  getCheckpoints: (id: string) => request<Checkpoint[]>(`/runs/${id}/checkpoints`),
   resumeRun: (id: string, value: unknown) => request<RunInfo>(`/runs/${id}/resume`, { method: "POST", body: JSON.stringify({ value }) }),
   cancelRun: (id: string) => request<RunInfo>(`/runs/${id}/cancel`, { method: "POST" }),
   listTools: () => request<ToolInfo[]>("/tools"),
