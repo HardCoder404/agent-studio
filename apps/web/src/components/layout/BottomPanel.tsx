@@ -1,9 +1,10 @@
 "use client";
 
-import { BarChart3, ChevronDown, ChevronUp, History, Terminal } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronUp, GitCompare, History, Terminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { RunEvent, RunInfo } from "@/lib/types";
+import { Compare } from "@/components/panel/Compare";
 import { Timeline } from "@/components/panel/Timeline";
 import { useGraphStore } from "@/store/graph";
 import { useRunStore } from "@/store/run";
@@ -117,10 +118,25 @@ function Runs() {
   };
 
   if (!runs.length) return <p className="px-3 py-2 text-xs text-muted">No runs yet.</p>;
+
+  // order as a tree: each run followed by its forks, depth for indentation
+  const byParent = new Map<string | null, RunInfo[]>();
+  for (const r of runs) byParent.set(r.parent_run_id, [...(byParent.get(r.parent_run_id) ?? []), r]);
+  const ordered: { run: RunInfo; depth: number }[] = [];
+  const visit = (parent: string | null, depth: number) => {
+    for (const r of byParent.get(parent) ?? []) {
+      ordered.push({ run: r, depth });
+      visit(r.id, depth + 1);
+    }
+  };
+  visit(null, 0);
+  for (const r of runs) if (!ordered.some((o) => o.run.id === r.id)) ordered.push({ run: r, depth: 0 }); // parent outside the page
+
   return (
     <ul className="divide-y divide-edge/60 overflow-y-auto text-xs">
-      {runs.map((r) => (
-        <li key={r.id} onClick={() => open(r)} className={`flex cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-white/5 ${r.id === current ? "bg-white/5" : ""}`}>
+      {ordered.map(({ run: r, depth }) => (
+        <li key={r.id} onClick={() => open(r)} className={`flex cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-white/5 ${r.id === current ? "bg-white/5" : ""}`} style={{ paddingLeft: 12 + depth * 18 }}>
+          {depth > 0 && <span className="text-violet-300" title="forked run">⑂</span>}
           <span className="font-mono text-muted">{r.id.slice(0, 8)}</span>
           <span className={`w-16 ${statusColor[r.status] ?? "text-muted"}`}>{r.status}</span>
           <span className="w-24 text-muted">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)} s` : ""}</span>
@@ -135,7 +151,7 @@ function Runs() {
 
 export function BottomPanel() {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"timeline" | "console" | "runs">("timeline");
+  const [tab, setTab] = useState<"timeline" | "console" | "runs" | "compare">("timeline");
   const runId = useRunStore((s) => s.runId);
   const status = useRunStore((s) => s.status);
 
@@ -157,6 +173,7 @@ export function BottomPanel() {
             ["timeline", BarChart3, "Timeline"],
             ["console", Terminal, "Console"],
             ["runs", History, "Runs"],
+            ["compare", GitCompare, "Compare"],
           ] as const
         ).map(([id, Icon, label]) => (
           <button
@@ -172,7 +189,7 @@ export function BottomPanel() {
         ))}
         {status && <span className="ml-auto text-muted">{status}</span>}
       </div>
-      {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : <Runs />}</div>}
+      {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : tab === "runs" ? <Runs /> : <Compare />}</div>}
     </section>
   );
 }

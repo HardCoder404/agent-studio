@@ -39,6 +39,8 @@ export const api = {
   getRun: (id: string) => request<RunInfo>(`/runs/${id}`),
   getRunEvents: (id: string) => request<RunEvent[]>(`/runs/${id}/events`),
   getCheckpoints: (id: string) => request<Checkpoint[]>(`/runs/${id}/checkpoints`),
+  forkRun: (id: string, checkpoint_id: string, vars: Record<string, unknown>) =>
+    request<RunInfo>(`/runs/${id}/fork`, { method: "POST", body: JSON.stringify({ checkpoint_id, vars }) }),
   resumeRun: (id: string, value: unknown) => request<RunInfo>(`/runs/${id}/resume`, { method: "POST", body: JSON.stringify({ value }) }),
   cancelRun: (id: string) => request<RunInfo>(`/runs/${id}/cancel`, { method: "POST" }),
   listTools: () => request<ToolInfo[]>("/tools"),

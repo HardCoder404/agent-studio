@@ -20,8 +20,14 @@ RECURSION_LIMIT = 100
 TERMINAL = {"done", "error", "cancelled"}
 
 
-def run_config(thread_id: str) -> dict:
-    return {"configurable": {"thread_id": thread_id}, "recursion_limit": RECURSION_LIMIT}
+def run_config(thread_id: str, checkpoint_id: str | None = None) -> dict:
+    cfg: dict = {"thread_id": thread_id, "checkpoint_ns": ""}
+    if checkpoint_id:
+        cfg["checkpoint_id"] = checkpoint_id  # pin: read or resume at exactly this checkpoint
+    return {"configurable": cfg, "recursion_limit": RECURSION_LIMIT}
+
+
+CONTINUE = object()  # sentinel: proceed from the run's head checkpoint without new input (forks)
 
 
 class EventSink:
@@ -76,8 +82,8 @@ def start_in_background(
     return task
 
 
-async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None = None) -> None:
-    """Start a run (resume_value=None) or resume a paused one."""
+async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any = None) -> None:
+    """Start a run (resume_value=None), resume a paused one, or continue a fork (CONTINUE)."""
     async with SessionLocal() as db:
         run = await db.get(Run, run_id)
         if run is None:
@@ -85,13 +91,22 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None =
         sink = EventSink(db, run_id)
         await sink.start()
         graph = compile_graph(spec, get_checkpointer())
+        # Reads use the thread; the stream starts from this run's head so sibling forks on the
+        # same thread never get mixed up.
         config = run_config(run.thread_id)
+        start_config = run_config(run.thread_id, run.head_checkpoint_id)
 
         skip_start: str | None = None
         if resume_value is None:
             payload: Any = {"vars": dict(run.input), "trace": []}
             run.started_at = datetime.now(UTC)
             await sink.emit("run_start", input=run.input)
+        elif resume_value is CONTINUE:
+            payload = None
+            run.started_at = datetime.now(UTC)
+            await sink.emit(
+                "run_fork", from_checkpoint=run.fork_checkpoint_id, head=run.head_checkpoint_id
+            )
         else:
             payload = Command(resume=resume_value)
             await sink.emit("run_resume", value=resume_value)
@@ -104,7 +119,9 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None =
         bus.publish(run_id, {"seq": None, "type": "status", "status": "running"})
 
         try:
-            stream = graph.astream(payload, config, stream_mode=["custom", "updates", "messages"])
+            stream = graph.astream(
+                payload, start_config, stream_mode=["custom", "updates", "messages"]
+            )
             async for mode, chunk in stream:
                 if mode == "custom":
                     ev = dict(chunk)
@@ -124,20 +141,21 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any | None =
                     if "__interrupt__" in chunk:
                         intr = chunk["__interrupt__"][0].value
                         run.status, run.interrupt = "paused", intr
+                        run.head_checkpoint_id = (await graph.aget_state(config)).config[
+                            "configurable"
+                        ]["checkpoint_id"]
                         await sink.emit("interrupt", intr.get("node"), **intr)
                         await db.commit()
                         bus.publish(run_id, {"seq": None, "type": "status", "status": "paused"})
                         return
                     # one checkpoint per completed node: the handle time-travel will use later
                     state = await graph.aget_state(config)
+                    run.head_checkpoint_id = state.config["configurable"]["checkpoint_id"]
                     for node in chunk:
-                        await sink.emit(
-                            "checkpoint",
-                            node,
-                            checkpoint_id=state.config["configurable"]["checkpoint_id"],
-                        )
+                        await sink.emit("checkpoint", node, checkpoint_id=run.head_checkpoint_id)
 
             state = await graph.aget_state(config)
+            run.head_checkpoint_id = state.config["configurable"]["checkpoint_id"]
             run.output = state.values.get("vars", {})
             run.usage = _sum_usage(state.values.get("trace", []))
             run.status = "done"

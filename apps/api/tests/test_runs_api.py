@@ -133,3 +133,62 @@ async def test_checkpoints_history(client, monkeypatch):
     events = (await client.get(f"/runs/{rid}/events")).json()
     ids = {c["checkpoint_id"] for c in cps}
     assert all(e["checkpoint_id"] in ids for e in events if e["type"] == "checkpoint")
+
+
+async def test_fork_from_checkpoint(client, monkeypatch):
+    checkpointer.use_memory()
+    script(monkeypatch, ["original draft", "rewritten", "unused"])
+    gid = (await client.post("/graphs", json=EXAMPLE)).json()["id"]
+    rid = (await client.post("/runs", json={"graph_id": gid, "input": {"topic": "t"}})).json()["id"]
+    await wait_for(client, rid, "paused")
+    await client.post(f"/runs/{rid}/resume", json={"value": "yes"})
+    original = await wait_for(client, rid, "done")
+    assert original["output"]["draft"] == "original draft"
+    assert original["head_checkpoint_id"]
+
+    cps = (await client.get(f"/runs/{rid}/checkpoints")).json()
+    after_write = next(c for c in cps if c["node"] == "write")
+
+    # edit the draft at that point and branch
+    r = await client.post(
+        f"/runs/{rid}/fork",
+        json={
+            "checkpoint_id": after_write["checkpoint_id"],
+            "vars": {"draft": "hand-edited draft"},
+        },
+    )
+    assert r.status_code == 202, r.text
+    fork = r.json()
+    assert (
+        fork["parent_run_id"] == rid and fork["fork_checkpoint_id"] == after_write["checkpoint_id"]
+    )
+
+    fork = await wait_for(client, fork["id"], "paused")  # continues into the human review
+    assert fork["interrupt"]["show"] == {"draft": "hand-edited draft"}
+    await client.post(f"/runs/{fork['id']}/resume", json={"value": "yes"})
+    fork = await wait_for(client, fork["id"], "done")
+    assert fork["output"]["draft"] == "hand-edited draft"
+
+    # original is untouched, fork lineage shows the edit
+    assert (await client.get(f"/runs/{rid}")).json()["output"]["draft"] == "original draft"
+    fcps = (await client.get(f"/runs/{fork['id']}/checkpoints")).json()
+    assert [c["node"] for c in fcps] == [None, "start", "write", None, "review", "route", "end"]
+    assert [c["forked"] for c in fcps].count(True) == 1
+    assert (
+        fcps[3]["vars"]["draft"] == "hand-edited draft"
+        and fcps[2]["vars"]["draft"] == "original draft"
+    )
+    orig_cps = (await client.get(f"/runs/{rid}/checkpoints")).json()
+    assert [c["node"] for c in orig_cps] == [None, "start", "write", "review", "route", "end"]
+
+    events = (await client.get(f"/runs/{fork['id']}/events")).json()
+    assert events[0]["type"] == "run_fork"
+
+    # forking from the end is refused
+    r = await client.post(
+        f"/runs/{rid}/fork", json={"checkpoint_id": orig_cps[-1]["checkpoint_id"]}
+    )
+    assert r.status_code == 409
+    assert (
+        await client.post(f"/runs/{rid}/fork", json={"checkpoint_id": "nope"})
+    ).status_code == 404

@@ -12,7 +12,7 @@ from app.db.tables import Graph, Run, RunEvent
 from app.engine import bus
 from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
-from app.engine.executor import run_config, start_in_background
+from app.engine.executor import CONTINUE, run_config, start_in_background
 from app.schemas.graph import GraphSpec
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -45,6 +45,8 @@ def _view(run: Run) -> dict:
         "graph_id": str(run.graph_id),
         "graph_version": run.graph_version,
         "parent_run_id": str(run.parent_run_id) if run.parent_run_id else None,
+        "fork_checkpoint_id": run.fork_checkpoint_id,
+        "head_checkpoint_id": run.head_checkpoint_id,
         "status": run.status,
         "input": run.input,
         "output": run.output,
@@ -165,39 +167,103 @@ async def cancel_run(run_id: uuid.UUID, db: Db) -> dict:
 
 @router.get("/{run_id}/checkpoints")
 async def get_checkpoints(run_id: uuid.UUID, db: Db) -> list[dict]:
-    """Every checkpoint of the run's thread, oldest first, with the state at that point.
+    """This run's checkpoints, oldest first, with the state at each one.
 
-    `node` is the node whose completion produced the checkpoint (the previous checkpoint's
-    `next`), so the list reads as a step-by-step history of the run.
+    Forks share a thread, so the list is built by walking parent pointers back from the
+    run's head rather than listing the whole thread. `node` is the node whose completion
+    produced the checkpoint (the previous checkpoint's `next`); `forked` marks a state that
+    was edited by hand.
     """
     run = await _get(db, run_id)
     spec = await _spec_for(db, run)
     graph = compile_graph(spec, get_checkpointer())
-    history = [s async for s in graph.aget_state_history(run_config(run.thread_id))]
-    history.reverse()  # LangGraph yields newest first
+
+    snaps = []
+    if run.head_checkpoint_id:
+        cfg: dict | None = run_config(run.thread_id, run.head_checkpoint_id)
+        while cfg:
+            snap = await graph.aget_state(cfg)
+            if not snap or not snap.config:
+                break
+            snaps.append(snap)
+            cfg = snap.parent_config
+        snaps.reverse()
+    else:  # runs recorded before head tracking existed
+        snaps = [s async for s in graph.aget_state_history(run_config(run.thread_id))]
+        snaps.reverse()
+
     out: list[dict] = []
     prev_next: list[str] = []
-    for snap in history:
-        step = snap.metadata.get("step") if snap.metadata else None
+    for snap in snaps:
+        meta = snap.metadata or {}
+        step = meta.get("step")
         if step is not None and step < 0:  # LangGraph's input checkpoint, before __start__ ran
             prev_next = list(snap.next)
             continue
-        cfg = snap.config["configurable"]
+        c = snap.config["configurable"]
         node = prev_next[0] if prev_next else None
+        forked = meta.get("source") == "update"
         out.append(
             {
-                "checkpoint_id": cfg["checkpoint_id"],
+                "checkpoint_id": c["checkpoint_id"],
                 "parent_id": ((snap.parent_config or {}).get("configurable") or {}).get(
                     "checkpoint_id"
                 ),
                 "step": step,
-                "node": None if node == "__start__" else node,
+                "node": None if (node == "__start__" or forked) else node,
                 "next": list(snap.next),
                 "created_at": snap.created_at,
                 "vars": snap.values.get("vars", {}),
                 "trace": snap.values.get("trace", []),
                 "interrupted": bool(getattr(snap, "interrupts", ())),
+                "forked": forked,
             }
         )
         prev_next = list(snap.next)
     return out
+
+
+class ForkBody(BaseModel):
+    checkpoint_id: str
+    vars: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post("/{run_id}/fork", status_code=status.HTTP_202_ACCEPTED)
+async def fork_run(run_id: uuid.UUID, body: ForkBody, db: Db) -> dict:
+    """Branch a new run off one of this run's checkpoints with edited variables.
+
+    The edit becomes a new checkpoint (LangGraph `update_state`) whose parent is the chosen
+    one, so the original run keeps its history and the fork continues from the edit.
+    """
+    parent = await _get(db, run_id)
+    spec = await _spec_for(db, parent)
+    graph = compile_graph(spec, get_checkpointer())
+    base = run_config(parent.thread_id, body.checkpoint_id)
+    snap = await graph.aget_state(base)
+    if (
+        not snap
+        or not snap.metadata  # an unknown id comes back as an empty snapshot echoing the config
+        or snap.config["configurable"].get("checkpoint_id") != body.checkpoint_id
+    ):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "checkpoint not found on this run")
+    if not snap.next:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "cannot fork from the final checkpoint: nothing left to run"
+        )
+
+    forked = await graph.aupdate_state(base, {"vars": body.vars} if body.vars else {})
+    run = Run(
+        graph_id=parent.graph_id,
+        graph_version=parent.graph_version,
+        thread_id=parent.thread_id,
+        parent_run_id=parent.id,
+        fork_checkpoint_id=body.checkpoint_id,
+        head_checkpoint_id=forked["configurable"]["checkpoint_id"],
+        status="queued",
+        input=parent.input,
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    start_in_background(run.id, spec, CONTINUE)
+    return _view(run)

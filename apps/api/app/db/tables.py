@@ -30,6 +30,12 @@ class Run(Base):
     graph_version: Mapped[int] = mapped_column(Integer)
     thread_id: Mapped[str] = mapped_column(String(64), index=True)
     parent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    fork_checkpoint_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # where this run branched off
+    head_checkpoint_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # latest checkpoint of this run
     status: Mapped[str] = mapped_column(
         String(16), default="queued"
     )  # queued|running|paused|done|error

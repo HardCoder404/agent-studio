@@ -120,6 +120,8 @@ export type RunInfo = {
   graph_id: string;
   graph_version: number;
   parent_run_id: string | null;
+  fork_checkpoint_id: string | null;
+  head_checkpoint_id: string | null;
   status: RunStatus;
   input: Record<string, unknown>;
   output: Record<string, unknown> | null;
@@ -163,4 +165,5 @@ export type Checkpoint = {
   vars: Record<string, unknown>;
   trace: Record<string, unknown>[];
   interrupted: boolean;
+  forked: boolean; // produced by an edit-and-fork, not by a node
 };
