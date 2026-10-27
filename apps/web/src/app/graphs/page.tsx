@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -76,7 +76,7 @@ export default function GraphsPage() {
     if (["graphs", "templates", "runs", "guide"].includes(h)) queueMicrotask(() => setViewState(h as View));
     refresh();
     api.listTemplates().then(setTemplates).catch(() => {});
-    fetch(`${API_URL}/runs?limit=40`).then((r) => r.json()).then(setRuns).catch(() => {});
+    fetch(`${API_URL}/runs?limit=200`).then((r) => r.json()).then(setRuns).catch(() => {});
     fetch(`${API_URL}/health`).then((r) => r.json()).then(setHealth).catch(() => {});
   }, []);
 
@@ -100,7 +100,7 @@ export default function GraphsPage() {
     }
   };
 
-  const PAGE = view === "overview" ? 5 : 10;
+  const PAGE = 10;
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const list = (graphs ?? []).filter((g) => (!needle || g.name.toLowerCase().includes(needle)) && (!onlyReady || g.issues === 0));
@@ -171,7 +171,8 @@ export default function GraphsPage() {
         {error && <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
 
         {/* templates */}
-        {templates.length > 0 && (view === "overview" || view === "templates") && (
+        {view === "overview" && <Dashboard runs={runs} graphs={graphs ?? []} />}
+        {templates.length > 0 && view === "templates" && (
           <section id="templates" className="mb-14 scroll-mt-8">
             <div className="mb-4 flex items-baseline justify-between">
               <h2 className="text-sm font-semibold tracking-tight">Start from a template</h2>
@@ -203,7 +204,7 @@ export default function GraphsPage() {
         {/* graphs */}
         {view === "runs" && <RunsTable runs={runs} graphs={graphs ?? []} />}
         {view === "guide" && <Guide />}
-        {(view === "overview" || view === "graphs") && (
+        {view === "graphs" && (
         <section id="graphs" className="scroll-mt-8">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold tracking-tight">Your graphs</h2>
@@ -408,13 +409,16 @@ function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSum
 function RunsTable({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }) {
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
   const [filter, setFilter] = useState<string>("");
-  const rows = runs.filter((r) => !filter || r.status === filter);
-  const cost = rows.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
+  const [pg, setPg] = useState(0);
+  const all = runs.filter((r) => !filter || r.status === filter);
+  const pages = Math.max(1, Math.ceil(all.length / 12));
+  const rows = all.slice(Math.min(pg, pages - 1) * 12, Math.min(pg, pages - 1) * 12 + 12);
+  const cost = all.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
     <section className="scroll-mt-8">
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="text-sm font-semibold tracking-tight">Runs across all graphs</h2>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="rounded-lg border border-edge bg-panel/60 px-2 py-1.5 text-xs text-fg">
+        <select value={filter} onChange={(e) => { setFilter(e.target.value); setPg(0); }} className="rounded-lg border border-edge bg-panel/60 px-2 py-1.5 text-xs text-fg">
           <option value="">all statuses</option>
           {["done", "paused", "running", "error", "cancelled"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -451,9 +455,14 @@ function RunsTable({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
             ))}
           </tbody>
         </table>
-        <div className="flex items-center justify-between border-t border-edge px-3 py-2 text-xs text-muted">
-          <span>{rows.length} runs</span>
+        <div className="flex items-center gap-4 border-t border-edge px-3 py-2 text-xs text-muted">
+          <span>{all.length} runs</span>
           <span>total cost <b className="text-fg">${cost.toFixed(5)}</b></span>
+          <div className="ml-auto flex items-center gap-1">
+            <button onClick={() => setPg((p) => Math.max(0, p - 1))} disabled={pg === 0} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronLeft size={14} /></button>
+            <span className="tabular-nums">{Math.min(pg, pages - 1) + 1} / {pages}</span>
+            <button onClick={() => setPg((p) => Math.min(pages - 1, p + 1))} disabled={pg >= pages - 1} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronRight size={14} /></button>
+          </div>
         </div>
       </div>
     </section>
@@ -491,6 +500,115 @@ function Guide() {
         <div className="rounded-2xl border border-edge bg-panel p-5 text-[13px] leading-relaxed text-muted">
           <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Cpu size={14} /> Under the hood</div>
           Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted; forking creates a new checkpoint whose parent is the one you edited. Console, timeline, cost and traces all derive from the same event log.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const statusColors: Record<string, string> = { done: "#34d399", error: "#fb7185", paused: "#f472b6", running: "#38bdf8", cancelled: "#fbbf24", queued: "#71717a" };
+
+function Donut({ parts, size = 120 }: { parts: [string, number, string][]; size?: number }) {
+  const total = parts.reduce((a, p) => a + p[1], 0) || 1;
+  const r = size / 2 - 10, c = 2 * Math.PI * r;
+  // precompute arc offsets: no mutation during render
+  const arcs = parts.reduce<{ label: string; color: string; len: number; offset: number }[]>((acc, [label, v, color]) => {
+    const offset = acc.reduce((a, x) => a + x.len, 0);
+    return [...acc, { label, color, len: (v / total) * c, offset }];
+  }, []);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(255 255 255 / 0.05)" strokeWidth={14} />
+      {arcs.map((a) => (
+        <circle key={a.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={a.color} strokeWidth={14} strokeDasharray={`${a.len} ${c - a.len}`} strokeDashoffset={-a.offset} />
+      ))}
+    </svg>
+  );
+}
+
+function Bars({ rows, color = "#38bdf8", fmt = (v: number) => String(v) }: { rows: [string, number][]; color?: string; fmt?: (v: number) => string }) {
+  const max = Math.max(...rows.map((r) => r[1]), 1);
+  return (
+    <div className="space-y-1.5">
+      {rows.map(([label, v]) => (
+        <div key={label} className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-2 text-[11px]">
+          <span className="truncate text-muted" title={label}>{label}</span>
+          <div className="h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full" style={{ width: `${(v / max) * 100}%`, background: color }} /></div>
+          <span className="text-right tabular-nums text-fg">{fmt(v)}</span>
+        </div>
+      ))}
+      {!rows.length && <p className="text-[11px] text-muted">no data yet</p>}
+    </div>
+  );
+}
+
+function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }) {
+  const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
+  const byStatus: Record<string, number> = {};
+  for (const r of runs) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+  const done = byStatus.done ?? 0, finished = done + (byStatus.error ?? 0) + (byStatus.cancelled ?? 0);
+  const cost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
+  const calls = runs.reduce((a, r) => a + (r.usage?.llm_calls ?? 0), 0);
+  const durations = runs.filter((r) => r.duration_ms != null && r.status === "done").map((r) => r.duration_ms as number).sort((a, b) => a - b);
+  const p50 = durations.length ? durations[Math.floor(durations.length / 2)] : null;
+  const perGraph: Record<string, number> = {};
+  for (const r of runs) perGraph[r.graph_id] = (perGraph[r.graph_id] ?? 0) + 1;
+  const topGraphs = Object.entries(perGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => [nameOf[id] ?? "deleted graph", n] as [string, number]);
+  const costGraph: Record<string, number> = {};
+  for (const r of runs) costGraph[r.graph_id] = (costGraph[r.graph_id] ?? 0) + (r.usage?.cost_usd ?? 0);
+  const topCost = Object.entries(costGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => [nameOf[id] ?? "deleted graph", v] as [string, number]);
+  const byHour: Record<string, number> = {};
+  for (const r of runs) { const h = new Date(r.created_at); const k = `${h.getDate()}/${h.getMonth() + 1} ${String(h.getHours()).padStart(2, "0")}h`; byHour[k] = (byHour[k] ?? 0) + 1; }
+  const hours = Object.entries(byHour).slice(0, 8).reverse() as [string, number][];
+  const kpis: [LucideIcon, string, string, string][] = [
+    [LayoutGrid, "Graphs", String(graphs.length), `${graphs.filter((g) => g.issues === 0).length} ready`],
+    [Activity, "Runs", String(runs.length), `${byStatus.paused ?? 0} waiting on a human`],
+    [ShieldCheck, "Success rate", finished ? `${Math.round((done / finished) * 100)}%` : "–", `${byStatus.error ?? 0} errors`],
+    [Coins, "Spend", `$${cost.toFixed(4)}`, `${calls} model calls · p50 ${p50 != null ? (p50 / 1000).toFixed(1) + " s" : "–"}`],
+  ];
+  return (
+    <section className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map(([Icon, label, value, sub]) => (
+          <div key={label} className="rounded-2xl border border-edge bg-panel p-4">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted"><Icon size={12} /> {label}</div>
+            <div className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight">{value}</div>
+            <div className="mt-0.5 text-[11px] text-muted">{sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="rounded-2xl border border-edge bg-panel p-4">
+          <div className="mb-3 text-sm font-semibold">Run outcomes</div>
+          <div className="flex items-center gap-4">
+            <Donut parts={Object.entries(byStatus).map(([k, v]) => [k, v, statusColors[k] ?? "#71717a"])} />
+            <ul className="space-y-1 text-[11px]">
+              {Object.entries(byStatus).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                <li key={k} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="w-16 text-muted">{k}</span><span className="tabular-nums text-fg">{v}</span><span className="text-muted/60">{Math.round((v / (runs.length || 1)) * 100)}%</span></li>
+              ))}
+              {!runs.length && <li className="text-muted">no runs yet</li>}
+            </ul>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-edge bg-panel p-4">
+          <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><BarChart3 size={14} className="text-sky-300" /> Runs per graph</div>
+          <Bars rows={topGraphs} />
+        </div>
+        <div className="rounded-2xl border border-edge bg-panel p-4">
+          <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><Coins size={14} className="text-amber-300" /> Spend per graph</div>
+          <Bars rows={topCost} color="#fbbf24" fmt={(v) => `$${v.toFixed(5)}`} />
+        </div>
+      </div>
+      <div className="rounded-2xl border border-edge bg-panel p-4">
+        <div className="mb-3 text-sm font-semibold">Activity by hour</div>
+        <div className="flex h-24 items-end gap-2">
+          {hours.map(([k, v]) => { const max = Math.max(...hours.map((h) => h[1]), 1); return (
+            <div key={k} className="flex flex-1 flex-col items-center gap-1" title={`${v} runs`}>
+              <div className="w-full rounded-t-md bg-gradient-to-t from-sky-500/40 to-violet-400/60" style={{ height: `${(v / max) * 72}px` }} />
+              <span className="text-[9px] text-muted">{k}</span>
+            </div>
+          ); })}
+          {!hours.length && <p className="text-[11px] text-muted">no runs yet</p>}
         </div>
       </div>
     </section>
