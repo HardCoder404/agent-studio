@@ -1,6 +1,7 @@
 """Example workflows shipped in /examples, duplication, and read-only share links."""
 
 import json
+import re
 import secrets
 import uuid
 from pathlib import Path
@@ -29,6 +30,14 @@ EXAMPLES = _find_examples()
 
 router = APIRouter(tags=["templates"])
 Db = Annotated[AsyncSession, Depends(get_session)]
+
+
+def _copy_name(name: str) -> str:
+    """'X' -> 'X (copy)', 'X (copy)' -> 'X (copy 2)', 'X (copy 2)' -> 'X (copy 3)'."""
+    m = re.fullmatch(r"(.*?) \(copy(?: (\d+))?\)", name)
+    if not m:
+        return f"{name} (copy)"
+    return f"{m.group(1)} (copy {int(m.group(2) or 1) + 1})"
 
 
 def _templates() -> dict[str, dict]:
@@ -77,7 +86,7 @@ async def duplicate_graph(graph_id: uuid.UUID, db: Db) -> dict:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "graph not found")
     spec = GraphSpec.model_validate(src.spec)
     copy = GraphSpec(
-        id=uuid.uuid4(), name=f"{spec.name} (copy)", nodes=spec.nodes, edges=spec.edges
+        id=uuid.uuid4(), name=_copy_name(spec.name), nodes=spec.nodes, edges=spec.edges
     )
     db.add(Graph(id=copy.id, name=copy.name, version=1, spec=copy.model_dump(mode="json")))
     await db.commit()
