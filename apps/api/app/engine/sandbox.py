@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import uuid
 from functools import lru_cache
 from typing import Literal
 
@@ -63,8 +64,9 @@ async def run(source: str, state: dict, timeout_s: int = 10) -> dict:
 
 
 async def _run_docker(source: str, state: dict, timeout_s: int) -> dict:
+    name = f"studio-code-{uuid.uuid4().hex[:12]}"
     args = [
-        "docker", "run", "--rm", "-i",
+        "docker", "run", "--rm", "-i", "--name", name,
         "--network", "none",
         "--memory", settings.code_sandbox_memory,
         "--cpus", "0.5",
@@ -74,7 +76,9 @@ async def _run_docker(source: str, state: dict, timeout_s: int) -> dict:
         "--user", "65534:65534",
         IMAGE, "python", "-c", _RUNNER,
     ]  # fmt: skip
-    return await _run_cmd(args, source, state, timeout_s + 2)  # +2s: container start-up
+    return await _run_cmd(
+        args, source, state, timeout_s + 2, container=name
+    )  # +2s: container start-up
 
 
 async def _run_inprocess(source: str, state: dict, timeout_s: int) -> dict:
@@ -85,7 +89,9 @@ async def _run_inprocess(source: str, state: dict, timeout_s: int) -> dict:
     return await _run_cmd([sys.executable, "-I", "-c", _RUNNER], source, state, timeout_s)
 
 
-async def _run_cmd(args: list[str], source: str, state: dict, timeout_s: float) -> dict:
+async def _run_cmd(
+    args: list[str], source: str, state: dict, timeout_s: float, container: str | None = None
+) -> dict:
     proc = await asyncio.create_subprocess_exec(
         *args,
         stdin=asyncio.subprocess.PIPE,
@@ -98,6 +104,16 @@ async def _run_cmd(args: list[str], source: str, state: dict, timeout_s: float) 
     except TimeoutError:
         proc.kill()
         await proc.wait()
+        if container:  # killing the docker client does not stop the container; stop it explicitly
+            killer = await asyncio.create_subprocess_exec(
+                "docker",
+                "rm",
+                "-f",
+                container,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await killer.wait()
         raise SandboxError(f"code node timed out after {timeout_s:g}s") from None
     if proc.returncode != 0 and not out.strip():
         msg = err.decode(errors="replace").strip()
