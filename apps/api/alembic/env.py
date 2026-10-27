@@ -29,9 +29,7 @@ target_metadata = Base.metadata
 
 def include_object(obj, name, type_, reflected, compare_to):
     """LangGraph's checkpointer owns the checkpoint* tables; keep autogenerate away from them."""
-    if type_ == "table" and name.startswith("checkpoint"):
-        return False
-    return True
+    return not (type_ == "table" and name.startswith("checkpoint"))
 
 
 # other values from the config, defined by the needs of env.py,

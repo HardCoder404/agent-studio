@@ -63,6 +63,7 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
   const status = useRunStore((s) => (s.replayStatus ? (s.replayStatus[id] ?? "idle") : (s.nodeStatus[id] ?? "idle")));
   const tokens = useRunStore((s) => (s.replayStatus ? undefined : s.tokens[id]));
   const output_ = useRunStore((s) => s.outputs[id]);
+  const heat = useRunStore((s) => (s.heat ? (s.heat[id] ?? 0) : null));
 
   const preview = !replaying && status === "done" && output_ ? Object.values(output_).find((v) => typeof v === "string") : null;
 
@@ -71,7 +72,13 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
       className={`group relative min-w-44 max-w-64 rounded-xl border bg-panel text-sm shadow-lg shadow-black/30 transition-shadow ${tones[tone]} ${
         selected ? "ring-2 ring-(--tone) ring-offset-2 ring-offset-canvas" : (statusRing[status] ?? "")
       }`}
+      style={heat != null && heat > 0 ? { boxShadow: `0 0 0 2px rgb(251 191 36 / ${0.25 + heat * 0.75}), 0 0 ${8 + heat * 28}px rgb(251 191 36 / ${heat * 0.7})` } : undefined}
     >
+      {heat != null && heat > 0 && (
+        <span className="absolute -top-2 -right-2 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-black" title="share of eval rows that failed on this node's output">
+          {Math.round(heat * 100)}%
+        </span>
+      )}
       {input && <Handle type="target" position={Position.Top} className="!h-2.5 !w-2.5 !border-2 !border-canvas !bg-(--tone)" />}
       <div className="flex items-center gap-2 px-3 py-2">
         <span className="grid h-6 w-6 place-items-center rounded-md bg-(--tone)/15 text-(--tone)">

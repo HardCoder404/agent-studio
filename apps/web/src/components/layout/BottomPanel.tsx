@@ -1,10 +1,11 @@
 "use client";
 
-import { BarChart3, ChevronDown, ChevronUp, GitCompare, History, Terminal } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronUp, FlaskConical, GitCompare, History, Terminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { RunEvent, RunInfo } from "@/lib/types";
 import { Compare } from "@/components/panel/Compare";
+import { Evals } from "@/components/panel/Evals";
 import { Timeline } from "@/components/panel/Timeline";
 import { useGraphStore } from "@/store/graph";
 import { useRunStore } from "@/store/run";
@@ -151,7 +152,7 @@ function Runs() {
 
 export function BottomPanel() {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"timeline" | "console" | "runs" | "compare">("timeline");
+  const [tab, setTab] = useState<"timeline" | "console" | "runs" | "compare" | "evals">("timeline");
   const runId = useRunStore((s) => s.runId);
   const status = useRunStore((s) => s.status);
 
@@ -163,7 +164,7 @@ export function BottomPanel() {
   }
 
   return (
-    <section className={`flex shrink-0 flex-col border-t border-edge bg-panel transition-[height] ${open ? "h-72" : "h-9"}`}>
+    <section className={`flex shrink-0 flex-col border-t border-edge bg-panel transition-[height] ${open ? (tab === "evals" ? "h-96" : "h-72") : "h-9"}`}>
       <div className="flex h-9 shrink-0 items-center gap-1 px-2 text-xs">
         <button onClick={() => setOpen((o) => !o)} className="rounded p-1 text-muted hover:text-fg">
           {open ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -174,6 +175,7 @@ export function BottomPanel() {
             ["console", Terminal, "Console"],
             ["runs", History, "Runs"],
             ["compare", GitCompare, "Compare"],
+            ["evals", FlaskConical, "Evals"],
           ] as const
         ).map(([id, Icon, label]) => (
           <button
@@ -189,7 +191,7 @@ export function BottomPanel() {
         ))}
         {status && <span className="ml-auto text-muted">{status}</span>}
       </div>
-      {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : tab === "runs" ? <Runs /> : <Compare />}</div>}
+      {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : tab === "runs" ? <Runs /> : tab === "compare" ? <Compare /> : <Evals />}</div>}
     </section>
   );
 }

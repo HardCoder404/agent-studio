@@ -62,3 +62,59 @@ class RunEvent(Base):
     node_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    graph_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("graphs.id", ondelete="SET NULL"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    rows: Mapped[list] = mapped_column(
+        JSON, default=list
+    )  # [{input: {...}, expected: ..., human: ...}]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class EvalRun(Base):
+    __tablename__ = "eval_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    graph_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("graphs.id", ondelete="CASCADE"), index=True
+    )
+    graph_version: Mapped[int] = mapped_column(Integer)
+    dataset_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"))
+    scorers: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(
+        String(16), default="queued"
+    )  # queued|running|done|error|cancelled
+    total: Mapped[int] = mapped_column(Integer, default=0)
+    completed: Mapped[int] = mapped_column(Integer, default=0)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EvalResult(Base):
+    __tablename__ = "eval_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    eval_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("eval_runs.id", ondelete="CASCADE"), index=True
+    )
+    row_index: Mapped[int] = mapped_column(Integer)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("runs.id", ondelete="SET NULL"), nullable=True
+    )
+    output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    scores: Mapped[dict] = mapped_column(JSON, default=dict)  # scorer name -> Score dict
+    usage: Mapped[dict] = mapped_column(JSON, default=dict)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)

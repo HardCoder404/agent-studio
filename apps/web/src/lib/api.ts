@@ -1,4 +1,4 @@
-import type { Checkpoint, GraphSpec, GraphSummary, ModelInfo, RunEvent, RunInfo, SpecEdge, SpecNode, ToolInfo } from "./types";
+import type { Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const WS_URL = API_URL.replace(/^http/, "ws");
@@ -39,6 +39,17 @@ export const api = {
   getRun: (id: string) => request<RunInfo>(`/runs/${id}`),
   getRunEvents: (id: string) => request<RunEvent[]>(`/runs/${id}/events`),
   getCheckpoints: (id: string) => request<Checkpoint[]>(`/runs/${id}/checkpoints`),
+  listDatasets: (graphId: string) => request<Dataset[]>(`/datasets?graph_id=${graphId}`),
+  createDataset: (body: { graph_id: string; name: string; rows: DatasetRow[] }) =>
+    request<Dataset>("/datasets", { method: "POST", body: JSON.stringify(body) }),
+  updateDataset: (id: string, body: { name: string; rows: DatasetRow[] }) =>
+    request<Dataset>(`/datasets/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteDataset: (id: string) => request<void>(`/datasets/${id}`, { method: "DELETE" }),
+  listEvals: (graphId: string) => request<EvalRunInfo[]>(`/evals?graph_id=${graphId}`),
+  createEval: (body: { graph_id: string; dataset_id: string; scorers: ScorerSpec[] }) =>
+    request<EvalRunInfo>("/evals", { method: "POST", body: JSON.stringify(body) }),
+  getEval: (id: string) => request<EvalRunInfo & { results: EvalResultRow[] }>(`/evals/${id}`),
+  cancelEval: (id: string) => request<EvalRunInfo>(`/evals/${id}/cancel`, { method: "POST" }),
   forkRun: (id: string, checkpoint_id: string, vars: Record<string, unknown>) =>
     request<RunInfo>(`/runs/${id}/fork`, { method: "POST", body: JSON.stringify({ checkpoint_id, vars }) }),
   resumeRun: (id: string, value: unknown) => request<RunInfo>(`/runs/${id}/resume`, { method: "POST", body: JSON.stringify({ value }) }),

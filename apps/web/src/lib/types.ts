@@ -167,3 +167,60 @@ export type Checkpoint = {
   interrupted: boolean;
   forked: boolean; // produced by an edit-and-fork, not by a node
 };
+
+export type DatasetRow = { input: Record<string, unknown>; expected?: unknown; human?: unknown };
+export type Dataset = { id: string; graph_id: string | null; name: string; rows: DatasetRow[]; updated_at: string };
+
+export type ScorerKind = "exact" | "contains" | "regex" | "json_valid" | "max_length" | "llm_judge";
+export type ScorerSpec = {
+  kind: ScorerKind;
+  key: string;
+  expected_field?: string;
+  case_sensitive?: boolean;
+  pattern?: string | null;
+  max_chars?: number | null;
+  required_keys?: string[];
+  rubric?: string;
+  model?: string;
+  pass_threshold?: number;
+};
+
+export type ScoreOut = { score: number; passed: boolean; detail: string; usage?: Record<string, number> };
+
+export type EvalSummary = {
+  rows: number;
+  errors: number;
+  pass_rate: number | null;
+  scorers: Record<string, { kind: ScorerKind; key: string; n: number; pass_rate: number | null; avg_score: number | null; nodes: string[] }>;
+  node_failure_share: Record<string, number>;
+  cost_usd: number;
+  avg_duration_ms: number;
+};
+
+export type EvalRunInfo = {
+  id: string;
+  graph_id: string;
+  graph_version: number;
+  dataset_id: string;
+  dataset_name?: string;
+  scorers: ScorerSpec[];
+  status: "queued" | "running" | "done" | "error" | "cancelled";
+  total: number;
+  completed: number;
+  summary: EvalSummary | Record<string, never>;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+};
+
+export type EvalResultRow = {
+  row_index: number;
+  run_id: string | null;
+  output: Record<string, unknown> | null;
+  scores: Record<string, ScoreOut>;
+  usage: Record<string, number>;
+  duration_ms: number | null;
+  error: string | null;
+  input?: Record<string, unknown>;
+  expected?: unknown;
+};

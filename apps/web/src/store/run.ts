@@ -22,6 +22,7 @@ type State = {
   checkpointsFor: string | null; // run id the list belongs to
   replayIndex: number | null; // index into checkpoints while scrubbing, null = live view
   replayStatus: Record<string, NodeStatus> | null; // derived from replayIndex
+  heat: Record<string, number> | null; // node id -> share of failed eval rows
 };
 
 type Actions = {
@@ -31,6 +32,7 @@ type Actions = {
   clear: () => void;
   setCheckpoints: (runId: string, cps: Checkpoint[]) => void;
   setReplayIndex: (i: number | null) => void;
+  setHeat: (h: Record<string, number> | null) => void;
 };
 
 const empty: State = {
@@ -50,6 +52,7 @@ const empty: State = {
   checkpointsFor: null,
   replayIndex: null,
   replayStatus: null,
+  heat: null,
 };
 
 export const TERMINAL: RunStatus[] = ["done", "error", "cancelled"];
@@ -60,6 +63,7 @@ export const useRunStore = create<State & Actions>()((set) => ({
   begin: (runId, status = "queued") => set({ ...empty, runId, status, startedAt: Date.now() }),
   setConnected: (connected) => set({ connected }),
   clear: () => set({ ...empty }),
+  setHeat: (heat) => set({ heat }),
   setCheckpoints: (runId, cps) => set((s) => (s.runId === runId ? { checkpoints: cps, checkpointsFor: runId } : {})),
   setReplayIndex: (replayIndex) =>
     set((s) => ({ replayIndex, replayStatus: replayIndex === null ? null : replayStatuses(s.checkpoints, replayIndex) })),
