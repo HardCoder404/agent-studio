@@ -94,3 +94,18 @@ body {
 .react-flow__attribution a {
   color: #4b5366;
 }
+
+/* final override: the library stylesheet is imported after this file, so be explicit */
+.react-flow .react-flow__controls-button,
+.react-flow .react-flow__controls-button:hover {
+  background-color: var(--panel) !important;
+  border-bottom: 1px solid var(--edge) !important;
+  color: var(--muted) !important;
+}
+.react-flow .react-flow__controls-button:hover {
+  background-color: #1a1f2a !important;
+  color: var(--fg) !important;
+}
+.react-flow .react-flow__controls-button svg {
+  fill: currentColor !important;
+}
