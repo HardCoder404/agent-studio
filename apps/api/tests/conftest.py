@@ -7,7 +7,7 @@ from app.main import app
 
 
 @pytest.fixture
-async def client():
+async def client(monkeypatch):
     # Each test gets a throwaway in-memory SQLite database; no Postgres needed to run tests.
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
@@ -19,6 +19,7 @@ async def client():
             yield s
 
     app.dependency_overrides[get_session] = _session
+    monkeypatch.setattr("app.engine.executor.SessionLocal", sessions)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
