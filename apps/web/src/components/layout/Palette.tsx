@@ -1,7 +1,6 @@
 "use client";
 
 import { useReactFlow } from "@xyflow/react";
-import { useRef } from "react";
 import { Bot, Code2, Flag, GitFork, Play, UserRound, Wrench, type LucideIcon } from "lucide-react";
 import { DRAG_MIME } from "@/components/canvas/Canvas";
 import { nodeMeta, type NodeType } from "@/lib/types";
@@ -19,17 +18,21 @@ const items: { type: NodeType; icon: LucideIcon; color: string }[] = [
 
 export function Palette() {
   const addNode = useGraphStore((s) => s.addNode);
-  const { screenToFlowPosition } = useReactFlow();
-  const placed = useRef(0);
+  const { screenToFlowPosition, fitView } = useReactFlow();
 
   const addAtCenter = (type: NodeType) => {
-    // centre of the visible canvas, stepping diagonally so repeated clicks don't stack
-    const rect = document.querySelector(".react-flow")?.getBoundingClientRect();
-    const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-    const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
-    const step = (placed.current++ % 5) * 56;
-    const p = screenToFlowPosition({ x: cx + step - 100, y: cy + step - 120 });
+    // Append below the lowest node so a click builds the flow top-down; first node goes to the centre.
+    const nodes = useGraphStore.getState().nodes;
+    let p: { x: number; y: number };
+    if (nodes.length) {
+      const lowest = nodes.reduce((a, b) => (b.position.y > a.position.y ? b : a));
+      p = { x: lowest.position.x, y: lowest.position.y + (lowest.measured?.height ?? 90) + 60 };
+    } else {
+      const rect = document.querySelector(".react-flow")?.getBoundingClientRect();
+      p = screenToFlowPosition({ x: rect ? rect.left + rect.width / 2 : 600, y: rect ? rect.top + rect.height / 2 : 400 });
+    }
     addNode(type, p);
+    requestAnimationFrame(() => fitView({ padding: 0.3, duration: 250, maxZoom: 1 }));
   };
 
   return (
