@@ -129,23 +129,23 @@ export default function GraphsPage() {
       <div aria-hidden className="pointer-events-none absolute -left-40 top-40 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -right-40 top-80 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
 
-      <div className="relative mx-auto grid max-w-[1600px] grid-cols-1 gap-8 px-6 pt-8 pb-24 lg:grid-cols-[13rem_minmax(0,1fr)_19rem]">
+      <div className="relative grid w-full grid-cols-1 gap-5 px-4 pt-5 pb-10 md:px-6 lg:grid-cols-[12rem_minmax(0,1fr)_20rem] 2xl:grid-cols-[13rem_minmax(0,1fr)_22rem]">
         <SideNav view={view} setView={setView} />
-        <div className="min-w-0">
+        <div className={view === "overview" ? "min-w-0" : "min-w-0 lg:col-span-2"}>
         {/* hero */}
         {view === "overview" && (
-        <header id="how" className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <header id="how" className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-edge bg-panel/60 px-3 py-1 text-[11px] font-medium tracking-wide text-muted backdrop-blur">
               <Sparkles size={12} className="text-sky-300" /> Chrome DevTools for AI agents
             </div>
-            <h1 className="flex items-center gap-3 text-4xl font-semibold tracking-tight">
+            <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-sky-400/30 to-violet-500/30 text-sky-200 ring-1 ring-white/10">
                 <Workflow size={22} />
               </span>
               <span className="bg-gradient-to-r from-white via-white to-sky-200 bg-clip-text text-transparent">Agent Studio</span>
             </h1>
-            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted">
+            <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">
               Build multi-agent workflows on a canvas, watch them run, then <span className="text-fg">rewind any run, edit its state and fork from that step</span>. Evals, model sweeps and MCP tools built in.
             </p>
             <div className="mt-4 flex items-center gap-4 text-xs text-muted">
@@ -178,7 +178,7 @@ export default function GraphsPage() {
               <h2 className="text-sm font-semibold tracking-tight">Start from a template</h2>
               <span className="text-xs text-muted">one click, runs on free tiers</span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {templates.map((t) => (
                 <button key={t.id} onClick={() => fromTemplate(t.id)} className="group relative overflow-hidden rounded-2xl border border-edge bg-panel p-5 text-left transition hover:-translate-y-0.5 hover:border-sky-400/40 hover:shadow-2xl hover:shadow-sky-500/10">
                   <div aria-hidden className={`pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-gradient-to-br ${templateArt[t.id] ?? "from-sky-500/30 to-transparent"} blur-2xl transition group-hover:scale-125`} />
@@ -304,7 +304,7 @@ export default function GraphsPage() {
         </section>
         )}
         </div>
-        {view === "overview" ? <RightRail runs={runs.slice(0, 8)} graphs={graphs ?? []} health={health} /> : <div className="hidden lg:block" />}
+        {view === "overview" && <RightRail runs={runs.slice(0, 8)} graphs={graphs ?? []} health={health} />}
       </div>
     </main>
   );
@@ -568,7 +568,7 @@ function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
   ];
   return (
     <section className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
         {kpis.map(([Icon, label, value, sub]) => (
           <div key={label} className="rounded-2xl border border-edge bg-panel p-4">
             <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted"><Icon size={12} /> {label}</div>
