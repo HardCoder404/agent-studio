@@ -43,10 +43,6 @@ def test_minimal_ok():
 @pytest.mark.parametrize(
     "patch, message",
     [
-        (
-            {"nodes": [{"id": "a", "type": "llm"}, {"id": "e", "type": "end"}], "edges": []},
-            "exactly one start",
-        ),
         ({"edges": [{"id": "e1", "source": "s", "target": "zzz"}]}, "unknown target"),
         (
             {
@@ -79,6 +75,17 @@ def test_structural_errors(patch, message):
     assert message in str(exc.value)
 
 
+def test_lint_reports_soft_problems():
+    spec = GraphCreate.model_validate(
+        minimal(nodes=[{"id": "a", "type": "llm"}, {"id": "e", "type": "end"}], edges=[])
+    ).to_spec()
+    messages = [i.message for i in spec.lint_issues()]
+    assert any("exactly one start" in m for m in messages)
+    assert any("outgoing edge" in m for m in messages)
+
+    assert GraphCreate.model_validate(minimal()).to_spec().lint_issues() == []
+
+
 def test_router_edges_must_match_branches():
     g = minimal(
         nodes=[
@@ -98,9 +105,8 @@ def test_router_edges_must_match_branches():
             {"id": "e2", "source": "r", "target": "e", "label": "yes"},
         ],
     )
-    with pytest.raises(ValidationError) as exc:
-        GraphCreate.model_validate(g)
-    assert "must match branches" in str(exc.value)
+    issues = GraphCreate.model_validate(g).to_spec().lint_issues()
+    assert any("must match branches" in i.message and i.node == "r" for i in issues)
 
 
 def test_unknown_field_rejected():

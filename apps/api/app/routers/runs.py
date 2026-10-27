@@ -78,6 +78,11 @@ async def create_run(body: RunCreate, db: Db) -> dict:
     if graph is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "graph not found")
     spec = GraphSpec.model_validate(graph.spec)
+    if issues := spec.lint_issues():
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {"message": "graph has unresolved issues", "issues": [i.model_dump() for i in issues]},
+        )
     try:
         compile_graph(spec)  # surface compile errors (unknown tool, ...) before queueing
     except Exception as e:

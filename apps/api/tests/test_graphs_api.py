@@ -31,11 +31,23 @@ async def test_crud_roundtrip(client):
     assert (await client.get(f"/graphs/{gid}")).status_code == 404
 
 
-async def test_invalid_graph_is_422(client):
-    bad = {**EXAMPLE, "edges": EXAMPLE["edges"][:-1]}  # rewrite node loses its outgoing edge
+async def test_draft_with_issues_saves_but_cannot_run(client):
+    draft = {**EXAMPLE, "edges": EXAMPLE["edges"][:-1]}  # rewrite node loses its outgoing edge
+    r = await client.post("/graphs", json=draft)
+    assert r.status_code == 201
+    assert [i["node"] for i in r.json()["issues"]] == ["rewrite"]
+    assert (await client.get("/graphs")).json()[0]["issues"] == 1
+
+    r = await client.post("/runs", json={"graph_id": r.json()["id"]})
+    assert r.status_code == 422
+    assert r.json()["detail"]["issues"][0]["node"] == "rewrite"
+
+
+async def test_broken_graph_is_422(client):
+    bad = {**EXAMPLE, "edges": [{"id": "x", "source": "start", "target": "nope"}]}
     r = await client.post("/graphs", json=bad)
     assert r.status_code == 422
-    assert "exactly one outgoing edge" in r.text
+    assert "unknown target" in r.text
 
 
 async def test_models_list(client):

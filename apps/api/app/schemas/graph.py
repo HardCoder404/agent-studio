@@ -126,17 +126,11 @@ class Edge(BaseModel):
 
 
 def validate_structure(nodes: list, edges: list[Edge]) -> None:
-    """Rules JSON Schema cannot express. Shared by GraphSpec and GraphCreate."""
+    """Hard errors: a graph that violates these cannot be represented on the canvas at all."""
     ids = [n.id for n in nodes]
     if len(ids) != len(set(ids)):
         raise ValueError("node ids must be unique")
     by_id = {n.id: n for n in nodes}
-
-    starts = [n for n in nodes if n.type == "start"]
-    if len(starts) != 1:
-        raise ValueError("graph needs exactly one start node")
-    if not any(n.type == "end" for n in nodes):
-        raise ValueError("graph needs at least one end node")
 
     edge_ids = [e.id for e in edges]
     if len(edge_ids) != len(set(edge_ids)):
@@ -152,17 +146,57 @@ def validate_structure(nodes: list, edges: list[Edge]) -> None:
         if by_id[e.target].type == "start":
             raise ValueError(f"edge {e.id}: start node cannot have incoming edges")
 
+
+class Issue(BaseModel):
+    node: str | None = None
+    edge: str | None = None
+    message: str
+
+
+def lint(nodes: list, edges: list[Edge]) -> list[Issue]:
+    """Soft problems: a draft may be saved with them, but it cannot run until they are fixed."""
+    issues: list[Issue] = []
+    starts = [n for n in nodes if n.type == "start"]
+    if len(starts) != 1:
+        issues.append(Issue(message=f"graph needs exactly one start node, has {len(starts)}"))
+    if not any(n.type == "end" for n in nodes):
+        issues.append(Issue(message="graph needs at least one end node"))
+
     for n in nodes:
         out = [e for e in edges if e.source == n.id]
         if n.type == "router":
-            labels = {b.label for b in n.config.branches}
-            got = {e.label for e in out}
-            if got != labels:
-                raise ValueError(
-                    f"router {n.id}: edges {sorted(map(str, got))} must match branches {sorted(labels)}"
+            labels = [b.label for b in n.config.branches]
+            if len(labels) != len(set(labels)):
+                issues.append(Issue(node=n.id, message="router branch labels must be unique"))
+            got = [e.label for e in out]
+            if len(got) != len(set(got)):
+                issues.append(Issue(node=n.id, message="router has two edges with the same label"))
+            if set(got) != set(labels):
+                issues.append(
+                    Issue(
+                        node=n.id,
+                        message=f"router edges {sorted(map(str, got))} must match branches {sorted(labels)}",
+                    )
                 )
         elif n.type != "end" and len(out) != 1:
-            raise ValueError(f"node {n.id}: must have exactly one outgoing edge, has {len(out)}")
+            issues.append(
+                Issue(node=n.id, message=f"needs exactly one outgoing edge, has {len(out)}")
+            )
+        if n.type == "llm" and not n.config.prompt.strip():
+            issues.append(Issue(node=n.id, message="prompt is empty"))
+
+    reachable: set[str] = set()
+    frontier = [s.id for s in starts]
+    while frontier:
+        cur = frontier.pop()
+        if cur in reachable:
+            continue
+        reachable.add(cur)
+        frontier.extend(e.target for e in edges if e.source == cur)
+    for n in nodes:
+        if n.id not in reachable and starts:
+            issues.append(Issue(node=n.id, message="not reachable from start"))
+    return issues
 
 
 class GraphSpec(BaseModel):
@@ -178,6 +212,9 @@ class GraphSpec(BaseModel):
     def check_structure(self) -> GraphSpec:
         validate_structure(self.nodes, self.edges)
         return self
+
+    def lint_issues(self) -> list[Issue]:
+        return lint(self.nodes, self.edges)
 
 
 class GraphCreate(BaseModel):

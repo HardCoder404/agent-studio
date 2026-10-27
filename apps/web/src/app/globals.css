@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: #0b0d12;
+  --panel: #12151c;
+  --edge: #1f2430;
+  --fg: #e6e8ee;
+  --muted: #8b93a7;
+  --grid: #222838;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-edge: var(--edge);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  background: var(--canvas);
+  color: var(--fg);
+  color-scheme: dark;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* React Flow chrome, tuned to the dark panel */
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: var(--panel);
+  border-bottom: 1px solid var(--edge);
+  fill: var(--muted);
+}
+.react-flow__controls-button:hover {
+  background: #1a1f2a;
+}
+.react-flow__minimap {
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.react-flow__edge-path {
+  stroke: #4b5366;
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #9aa5c4;
+}
+.react-flow__edge-textbg {
+  fill: var(--panel);
+}
+.react-flow__edge-text {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
 }
