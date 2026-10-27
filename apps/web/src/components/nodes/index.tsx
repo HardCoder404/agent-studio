@@ -67,7 +67,9 @@ function RouterNode({ id, data, selected }: StudioNodeProps) {
   const branches = c.branches ?? [];
   const labels = branches.map((b) => b.label).join("\u0000");
   const updateNodeInternals = useUpdateNodeInternals();
-  useEffect(() => updateNodeInternals(id), [id, labels, updateNodeInternals]);
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, labels, updateNodeInternals]);
   return (
     <div className="relative">
       <NodeShell id={id} selected={selected} icon={GitFork} tone="violet" title={data.label} subtitle={c.mode === "llm" ? "asks a model" : "rule"} output={false}>

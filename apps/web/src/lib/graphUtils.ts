@@ -30,3 +30,21 @@ export function allKeys(nodes: StudioNode[]): string[] {
   }
   return [...out];
 }
+
+const VAR_RE = /\{\{\s*([a-zA-Z_][\w]*)(?:\.[\w.]+)?\s*\}\}/g;
+
+function collectStrings(v: unknown, out: string[]): void {
+  if (typeof v === "string") out.push(v);
+  else if (Array.isArray(v)) v.forEach((x) => collectStrings(x, out));
+  else if (v && typeof v === "object") Object.values(v).forEach((x) => collectStrings(x, out));
+}
+
+/** Variables referenced in templates that no node produces: these must come from run input. */
+export function inputKeys(nodes: StudioNode[]): string[] {
+  const produced = new Set(allKeys(nodes));
+  const strings: string[] = [];
+  for (const n of nodes) collectStrings(n.data.config, strings);
+  const used = new Set<string>();
+  for (const s of strings) for (const m of s.matchAll(VAR_RE)) used.add(m[1]);
+  return [...used].filter((k) => !produced.has(k));
+}

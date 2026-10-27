@@ -110,3 +110,45 @@ export const nodeMeta: Record<NodeType, { title: string; hint: string }> = {
   human: { title: "Human", hint: "Pause and wait for a person." },
   code: { title: "Code", hint: "Run a Python function over the variables." },
 };
+
+export type RunStatus = "queued" | "running" | "paused" | "done" | "error" | "cancelled";
+
+export type RunUsage = { input_tokens: number; output_tokens: number; cost_usd: number; llm_calls: number };
+
+export type RunInfo = {
+  id: string;
+  graph_id: string;
+  graph_version: number;
+  parent_run_id: string | null;
+  status: RunStatus;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  interrupt: InterruptPayload | null;
+  error: string | null;
+  usage: Partial<RunUsage>;
+  duration_ms: number | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+};
+
+export type InterruptPayload = { node: string; question: string; show: Record<string, unknown> };
+
+/** One message on /ws/runs/{id}. seq is null for live-only events (token, status). */
+export type RunEvent = {
+  seq: number | null;
+  type: string;
+  node?: string | null;
+  ts?: string;
+  text?: string;
+  status?: RunStatus;
+  output?: Record<string, unknown>;
+  usage?: Record<string, number | string>;
+  input?: Record<string, unknown>;
+  value?: unknown;
+  error?: string;
+  question?: string;
+  show?: Record<string, unknown>;
+  checkpoint_id?: string;
+  replay?: boolean;
+};

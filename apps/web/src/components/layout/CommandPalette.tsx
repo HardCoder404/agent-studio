@@ -50,7 +50,7 @@ export function CommandPalette() {
       run: addAt(t),
     }));
     return [
-      { id: "run", title: "Run graph", hint: issues ? `${issues} issue(s) to fix first` : "coming soon", icon: Play, keys: "⌘↵", run: () => {}, disabled: true },
+      { id: "run", title: "Run graph", hint: issues ? `${issues} issue(s) to fix first` : undefined, icon: Play, keys: "⌘↵", run: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true })), disabled: issues > 0 },
       { id: "fit", title: "Fit view", icon: Maximize2, keys: "⇧1", run: () => fitView({ padding: 0.3, duration: 250 }) },
       { id: "undo", title: "Undo", icon: Undo2, keys: "⌘Z", run: () => temporal.getState().undo() },
       { id: "redo", title: "Redo", icon: Redo2, keys: "⇧⌘Z", run: () => temporal.getState().redo() },

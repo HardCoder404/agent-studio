@@ -2,11 +2,12 @@
 
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, useReactFlow, type OnSelectionChangeParams } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { nodeTypes } from "@/components/nodes";
 import type { NodeType } from "@/lib/types";
 import { useGraphStore, useTemporal } from "@/store/graph";
+import { useRunStore } from "@/store/run";
 
 export const DRAG_MIME = "application/agent-studio-node";
 
@@ -24,6 +25,18 @@ export function Canvas() {
   );
   const { screenToFlowPosition } = useReactFlow();
   const temporal = useTemporal();
+  const nodeStatus = useRunStore((s) => s.nodeStatus);
+
+  // an edge "flows" while its target is running or waiting and its source has finished
+  const liveEdges = useMemo(
+    () =>
+      edges.map((e) => {
+        const active = (nodeStatus[e.target] === "running" || nodeStatus[e.target] === "paused") && nodeStatus[e.source] === "done";
+        const walked = nodeStatus[e.target] === "done" && nodeStatus[e.source] === "done";
+        return { ...e, animated: active, style: { strokeWidth: active ? 2.5 : 1.5, stroke: active ? "#7dd3fc" : walked ? "#34d399" : undefined } };
+      }),
+    [edges, nodeStatus],
+  );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -58,7 +71,7 @@ export function Canvas() {
   return (
     <ReactFlow
       nodes={nodes}
-      edges={edges}
+      edges={liveEdges}
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
