@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
+    code_sandbox: str = "auto"  # auto | docker | inprocess
+    code_sandbox_memory: str = "256m"
 
 
 settings = Settings()

@@ -7,12 +7,12 @@ progress without depending on LangGraph's internal event names.
 import json
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.config import get_stream_writer
 from langgraph.types import interrupt
 
+from app.engine import sandbox
 from app.engine import tools as tool_registry
 from app.engine.rules import evaluate
 from app.engine.state import RunState
@@ -113,30 +113,19 @@ def make_human_runner(node: HumanNode) -> Runner:
     return run
 
 
-_SAFE_BUILTINS = {
-    "len": len, "str": str, "int": int, "float": float, "min": min, "max": max, "sum": sum,
-    "sorted": sorted, "range": range, "dict": dict, "list": list, "abs": abs, "round": round,
-    "enumerate": enumerate, "zip": zip, "any": any, "all": all, "json": json,
-}  # fmt: skip
-
-
 def make_code_runner(node: CodeNode) -> Runner:
-    """In-process execution with a reduced builtins table. Not a sandbox yet: the Docker
-    sandbox arrives later and this runner is swapped out for it."""
+    """Runs the node's Python in the sandbox (Docker when available, see app/engine/sandbox.py)."""
     cfg = node.config
 
     async def run(state: RunState) -> dict:
         _emit({"type": "node_start", "node": node.id})
-        namespace: dict[str, Any] = {"__builtins__": _SAFE_BUILTINS}
-        exec(compile(cfg.source, f"<code:{node.id}>", "exec"), namespace)  # noqa: S102
-        main = namespace.get("main")
-        if not callable(main):
-            raise TypeError(f"code node {node.id}: define `def main(state): ...`")
         t0 = time.perf_counter()
-        result = main(dict(state["vars"]))
-        if not isinstance(result, dict):
-            raise TypeError(f"code node {node.id}: main() must return a dict of variables")
-        entry = {"node": node.id, "latency_ms": round((time.perf_counter() - t0) * 1000)}
+        result = await sandbox.run(cfg.source, dict(state["vars"]), cfg.timeout_s)
+        entry = {
+            "node": node.id,
+            "latency_ms": round((time.perf_counter() - t0) * 1000),
+            "sandbox": sandbox.mode(),
+        }
         _emit({"type": "node_end", "node": node.id, "output": result, "usage": entry})
         return {"vars": result, "trace": [entry]}
 

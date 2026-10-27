@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.engine import checkpointer
+from app.engine import checkpointer, sandbox
 from app.engine.mcp import manager as mcp_manager
 from app.routers import evals, graphs, mcp, models, runs, stats, templates, tools, ws
 from app.settings import settings
@@ -46,4 +46,5 @@ def health() -> dict:
         "groq": bool(settings.groq_api_key),
         "gemini": bool(settings.gemini_api_key),
         "langfuse": bool(settings.langfuse_public_key and settings.langfuse_secret_key),
+        "code_sandbox": sandbox.mode(),
     }
