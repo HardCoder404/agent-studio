@@ -14,7 +14,18 @@ from app.db.session import get_session
 from app.db.tables import Graph
 from app.schemas.graph import GraphCreate, GraphSpec
 
-EXAMPLES = Path(__file__).resolve().parents[4] / "examples"  # repo root
+
+def _find_examples() -> Path:
+    """The examples folder lives at the repo root; in the Docker image it is copied to /examples."""
+    here = Path(__file__).resolve()
+    for parent in [*here.parents, Path("/")]:
+        candidate = parent / "examples"
+        if candidate.is_dir() and any(candidate.glob("*.json")):
+            return candidate
+    return here.parents[0] / "examples"  # empty but harmless
+
+
+EXAMPLES = _find_examples()
 
 router = APIRouter(tags=["templates"])
 Db = Annotated[AsyncSession, Depends(get_session)]

@@ -2,7 +2,10 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parents[3]
+_HERE = Path(__file__).resolve()
+# repo root when running from source (apps/api/app/settings.py); inside the Docker image the
+# tree is shallower and there is no .env file, so fall back to the app directory.
+ROOT = _HERE.parents[3] if len(_HERE.parents) > 3 else _HERE.parents[1]
 
 
 class Settings(BaseSettings):
@@ -16,6 +19,9 @@ class Settings(BaseSettings):
     langfuse_host: str = "https://cloud.langfuse.com"
     code_sandbox: str = "auto"  # auto | docker | inprocess
     code_sandbox_memory: str = "256m"
+    cors_origins: str = "http://localhost:3000"  # comma separated
+    rate_limit_per_minute: int = 120  # per client IP, mutating requests
+    daily_llm_call_budget: int = 2000  # 0 = unlimited; protects a public demo's free tier
 
 
 settings = Settings()

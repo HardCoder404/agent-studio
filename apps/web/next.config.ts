@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   agentRules: false,
   /* config options here */
   cacheComponents: true,

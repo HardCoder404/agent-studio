@@ -74,7 +74,10 @@ async def ainvoke_with_retry(llm: BaseChatModel, messages, on_retry=None, attemp
     import asyncio
     import random
 
+    from app.middleware import budget
+
     for attempt in range(1, attempts + 1):
+        budget.check_and_count()
         try:
             return await llm.ainvoke(messages)
         except RETRYABLE as e:

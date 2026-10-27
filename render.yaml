@@ -1,0 +1,29 @@
+# Render blueprint: one free web service for the API. The web app goes to Vercel and
+# Postgres to Supabase (both free). See docs/deploy.md.
+services:
+  - type: web
+    name: agent-studio-api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Supabase connection string (session pooler, port 5432)
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://agent-studio.vercel.app   # replace with the Vercel URL
+      - key: CODE_SANDBOX
+        value: inprocess     # Render free tier has no Docker daemon for the sandbox
+      - key: DAILY_LLM_CALL_BUDGET
+        value: "1500"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"

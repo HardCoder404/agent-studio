@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
+from app import middleware
 from app.engine import checkpointer, sandbox
 from app.engine.mcp import manager as mcp_manager
 from app.routers import evals, graphs, mcp, models, runs, stats, templates, tools, ws
@@ -20,12 +20,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Agent Studio API", version="0.1.0", lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+middleware.install(app)
 
 app.include_router(graphs.router)
 app.include_router(models.router)
@@ -47,4 +42,5 @@ def health() -> dict:
         "gemini": bool(settings.gemini_api_key),
         "langfuse": bool(settings.langfuse_public_key and settings.langfuse_secret_key),
         "code_sandbox": sandbox.mode(),
+        "budget": middleware.budget.snapshot(),
     }
