@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, BookOpen, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -54,6 +54,10 @@ export default function GraphsPage() {
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"updated" | "name" | "nodes" | "issues">("updated");
+  const [page, setPage] = useState(0);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [onlyReady, setOnlyReady] = useState(false);
   const [runs, setRuns] = useState<RunInfo[]>([]);
   const [health, setHealth] = useState<{ groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -87,10 +91,26 @@ export default function GraphsPage() {
     }
   };
 
+  const PAGE = 10;
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return (graphs ?? []).filter((g) => !needle || g.name.toLowerCase().includes(needle));
-  }, [graphs, q]);
+    const list = (graphs ?? []).filter((g) => (!needle || g.name.toLowerCase().includes(needle)) && (!onlyReady || g.issues === 0));
+    const by: Record<typeof sort, (a: GraphSummary, b: GraphSummary) => number> = {
+      updated: (a, b) => b.updated_at.localeCompare(a.updated_at),
+      name: (a, b) => a.name.localeCompare(b.name),
+      nodes: (a, b) => b.nodes - a.nodes,
+      issues: (a, b) => b.issues - a.issues,
+    };
+    return [...list].sort(by[sort]);
+  }, [graphs, q, sort, onlyReady]);
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE));
+  const pageRows = shown.slice(Math.min(page, pages - 1) * PAGE, Math.min(page, pages - 1) * PAGE + PAGE);
+  const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const removeMany = async () => {
+    await Promise.all([...sel].map((id) => api.deleteGraph(id)));
+    setSel(new Set());
+    refresh();
+  };
   const healthy = (graphs ?? []).filter((g) => g.issues === 0).length;
 
   return (
@@ -175,7 +195,7 @@ export default function GraphsPage() {
             <h2 className="text-sm font-semibold tracking-tight">Your graphs</h2>
             <label className="flex items-center gap-2 rounded-lg border border-edge bg-panel/60 px-3 py-1.5 text-xs text-muted focus-within:border-sky-500/50">
               <Search size={13} />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search graphs" className="w-44 bg-transparent text-fg outline-none placeholder:text-muted/60" />
+              <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search graphs" className="w-44 bg-transparent text-fg outline-none placeholder:text-muted/60" />
             </label>
           </div>
 
@@ -186,43 +206,86 @@ export default function GraphsPage() {
           )}
           {graphs && graphs.length > 0 && shown.length === 0 && <p className="text-sm text-muted">Nothing matches “{q}”.</p>}
 
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {shown.map((g) => (
-              <li key={g.id} className="group relative rounded-2xl border border-edge bg-panel p-4 transition hover:border-white/15 hover:shadow-xl hover:shadow-black/30">
-                <Link href={`/graphs/${g.id}`} className="block">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="line-clamp-2 min-w-0 text-sm font-semibold leading-snug tracking-tight" title={g.name}>{g.name}</div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {g.shared && <Link2 size={13} className="text-sky-300" aria-label="shared with a link" />}
+          <div className="overflow-hidden rounded-2xl border border-edge bg-panel">
+            <table className="w-full text-sm">
+              <thead className="bg-white/[.02] text-[11px] uppercase tracking-wider text-muted">
+                <tr>
+                  <th className="w-9 px-3 py-2.5">
+                    <button onClick={() => setSel(sel.size === pageRows.length ? new Set() : new Set(pageRows.map((g) => g.id)))} className="text-muted hover:text-fg" title="Select page">
+                      {sel.size > 0 && sel.size === pageRows.length ? <CheckSquare size={14} /> : <SquareIcon size={14} />}
+                    </button>
+                  </th>
+                  {(
+                    [
+                      ["name", "Name", "text-left"],
+                      ["nodes", "Nodes", "text-right"],
+                      ["issues", "Status", "text-left"],
+                      ["updated", "Updated", "text-left"],
+                    ] as const
+                  ).map(([key, label, align]) => (
+                    <th key={key} className={`px-3 py-2.5 font-medium ${align}`}>
+                      <button onClick={() => setSort(key)} className={`inline-flex items-center gap-1 hover:text-fg ${sort === key ? "text-fg" : ""}`}>
+                        {label} <ArrowUpDown size={11} className={sort === key ? "opacity-100" : "opacity-30"} />
+                      </button>
+                    </th>
+                  ))}
+                  <th className="px-3 py-2.5 text-right font-medium">v</th>
+                  <th className="w-24 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((g) => (
+                  <tr key={g.id} className={`group border-t border-edge/70 transition hover:bg-white/[.03] ${sel.has(g.id) ? "bg-sky-500/5" : ""}`}>
+                    <td className="px-3 py-2">
+                      <button onClick={() => toggle(g.id)} className={sel.has(g.id) ? "text-sky-300" : "text-muted/60 hover:text-fg"}>
+                        {sel.has(g.id) ? <CheckSquare size={14} /> : <SquareIcon size={14} />}
+                      </button>
+                    </td>
+                    <td className="max-w-0 px-3 py-2">
+                      <Link href={`/graphs/${g.id}`} className="flex items-center gap-2">
+                        <span className="truncate font-medium text-fg group-hover:text-sky-200" title={g.name}>{g.name}</span>
+                        {g.shared && <Link2 size={12} className="shrink-0 text-sky-300" aria-label="shared with a link" />}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted">{g.nodes}</td>
+                    <td className="px-3 py-2">
                       {g.issues > 0 ? (
-                        <span className="flex items-center gap-1 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title="Unresolved issues">
-                          <AlertTriangle size={10} /> {g.issues}
-                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"><AlertTriangle size={10} /> {g.issues} issue{g.issues > 1 ? "s" : ""}</span>
                       ) : (
-                        <span className="rounded-full bg-emerald-400/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">ready</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> ready</span>
                       )}
-                    </div>
-                  </div>
-                  <div className="mt-2 text-[11px] text-muted">
-                    {g.nodes} nodes · v{g.version} · {new Date(g.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-                  </div>
-                </Link>
-                <div className="mt-3 flex items-center justify-between">
-                  <Link href={`/graphs/${g.id}`} className="flex items-center gap-1 text-xs font-medium text-sky-300 opacity-0 transition group-hover:opacity-100">
-                    Open <ArrowRight size={12} />
-                  </Link>
-                  <div className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
-                    <button onClick={() => duplicate(g.id)} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-fg" title="Duplicate">
-                      <Copy size={13} />
-                    </button>
-                    <button onClick={() => remove(g.id)} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-rose-400" title="Delete">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted">{new Date(g.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">v{g.version}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-0.5 opacity-0 transition group-hover:opacity-100">
+                        <Link href={`/graphs/${g.id}`} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-sky-300" title="Open"><ArrowRight size={13} /></Link>
+                        <button onClick={() => duplicate(g.id)} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-fg" title="Duplicate"><Copy size={13} /></button>
+                        <button onClick={() => remove(g.id)} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-rose-400" title="Delete"><Trash2 size={13} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex items-center gap-3 border-t border-edge px-3 py-2 text-xs text-muted">
+              {sel.size > 0 ? (
+                <>
+                  <span className="text-fg">{sel.size} selected</span>
+                  <button onClick={removeMany} className="flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-1 text-rose-300 hover:bg-rose-500/25"><Trash2 size={12} /> Delete selected</button>
+                  <button onClick={() => setSel(new Set())} className="hover:text-fg">clear</button>
+                </>
+              ) : (
+                <span>{shown.length} graph{shown.length === 1 ? "" : "s"}{graphs && shown.length !== graphs.length ? ` of ${graphs.length}` : ""}</span>
+              )}
+              <label className="ml-auto flex items-center gap-1.5"><input type="checkbox" checked={onlyReady} onChange={(e) => { setOnlyReady(e.target.checked); setPage(0); }} /> ready only</label>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronLeft size={14} /></button>
+                <span className="tabular-nums">{Math.min(page, pages - 1) + 1} / {pages}</span>
+                <button onClick={() => setPage((p) => Math.min(pages - 1, p + 1))} disabled={page >= pages - 1} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronRight size={14} /></button>
+              </div>
+            </div>
+          </div>
         </section>
         </div>
         <RightRail runs={runs} graphs={graphs ?? []} health={health} />
