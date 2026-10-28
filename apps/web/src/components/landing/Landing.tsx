@@ -187,8 +187,8 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
         <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
         <AppBar health={health} onImport={onImport} onNew={create} />
 
-        <div className="mx-auto grid w-full max-w-[1680px] gap-4 px-4 py-4 md:px-6 xl:min-h-[calc(100vh-3.5rem)] xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
-          <div className="flex min-w-0 flex-col gap-4">
+        <div className="mx-auto w-full max-w-[1680px] px-4 py-4 md:px-6">
+          <div className="flex min-h-[calc(100vh-5.5rem)] min-w-0 flex-col gap-4">
             {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
             {children}
           </div>
@@ -306,11 +306,11 @@ function RightRail({ runs: allRuns, paused, graphs, health }: { runs: RunInfo[];
   const runs = allRuns.slice(0, fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className="grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col">
-      <section className="card flex min-h-0 flex-1 flex-col p-4">
+    <aside className="mt-4 grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="card flex min-h-0 flex-col p-4">
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
         {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
-        <ul ref={listRef} className="-mx-2 min-h-[9.5rem] flex-1 space-y-0.5 overflow-hidden xl:min-h-0">
+        <ul ref={listRef} className="-mx-2 min-h-[9.5rem] flex-1 space-y-0.5 overflow-hidden">
           {runs.map((r) => (
             <li key={r.id}>
               <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-panel-2">
@@ -1201,7 +1201,7 @@ function RunsLine({ series }: { series: { t: number; runs: number; cost: number 
   const area = `${d} L${W} ${H} L0 ${H} Z`;
   const days = series.map((p, i) => [i, new Date(p.t)] as const).filter(([, dt]) => dt.getHours() === 0);
   const h = hover != null ? series[hover] : null;
-  const fmtT = (t: number) => new Date(t).toLocaleString(undefined, { weekday: "short", hour: "2-digit" });
+  const fmtT = (t: number) => new Date(t).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col">
       <div
@@ -1238,8 +1238,8 @@ function RunsLine({ series }: { series: { t: number; runs: number; cost: number 
         <span className="pointer-events-none absolute top-0 right-0 font-mono text-[9.5px] text-dim">max {max}</span>
       </div>
       <div className="relative mt-1 h-4 font-mono text-[9.5px] text-dim">
-        {days.map(([i, dt]) => (
-          <span key={i} className="absolute -translate-x-1/2" style={{ left: `${(i / (n - 1)) * 100}%` }}>{dt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
+        {days.map(([i, dt], k) => (
+          <span key={i} className={`absolute ${k === 0 ? "" : k === days.length - 1 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${(i / (n - 1)) * 100}%` }}>{dt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
         ))}
       </div>
     </div>
