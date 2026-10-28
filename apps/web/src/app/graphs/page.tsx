@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, UserRound, Workflow, Wrench, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -165,7 +165,7 @@ export default function GraphsPage() {
       <div className="mx-auto grid w-full max-w-[1680px] min-h-[calc(100vh-3.5rem)] gap-4 px-4 py-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="flex min-w-0 flex-col gap-4">
           {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
-          {view === "overview" && <Overview runs={runs} graphs={graphs} templates={templates} fromTemplate={fromTemplate} setView={setView} />}
+          {view === "overview" && <Overview runs={runs} graphs={graphs} templates={templates} fromTemplate={fromTemplate} setView={setView} onNew={create} />}
           {view === "graphs" && <GraphsView graphs={graphs} refresh={refresh} onNew={create} />}
           {view === "templates" && <TemplatesView templates={templates} fromTemplate={fromTemplate} onImport={onImport} onNew={create} />}
           {view === "runs" && <RunsView runs={runs} graphs={graphs ?? []} />}
@@ -326,7 +326,7 @@ function ModelsCard() {
 
 /* ---------------- overview ---------------- */
 
-function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView }: { runs: RunInfo[]; graphs: GraphSummary[] | null; templates: TemplateInfo[]; fromTemplate: (slug: string) => void; setView: (v: View) => void }) {
+function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView, onNew }: { runs: RunInfo[]; graphs: GraphSummary[] | null; templates: TemplateInfo[]; fromTemplate: (slug: string) => void; setView: (v: View) => void; onNew: () => void }) {
   const graphs = graphsOrNull ?? [];
   const healthy = graphs.filter((g) => g.issues === 0).length;
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
@@ -345,9 +345,26 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
   const costGraph: Record<string, number> = {};
   for (const r of runs) costGraph[r.graph_id] = (costGraph[r.graph_id] ?? 0) + (r.usage?.cost_usd ?? 0);
   const topCost = Object.entries(costGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => [id, nameOf[id] ?? "deleted graph", v] as [string, string, number]);
-  const byHour: Record<string, number> = {};
-  for (const r of runs) { const h = new Date(r.created_at); const k = `${h.getDate()}/${h.getMonth() + 1} ${String(h.getHours()).padStart(2, "0")}h`; byHour[k] = (byHour[k] ?? 0) + 1; }
-  const hours = Object.entries(byHour).slice(0, 10).reverse() as [string, number][];
+  // "now" is only known after mount: using the clock during server render would break hydration
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setNow(Date.now()));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  // last 7 days in 4-hour buckets, aligned to local midnight six days ago
+  const BUCKET = 4 * 3600000, N = 42;
+  const dayStart = now != null ? new Date(now) : null;
+  dayStart?.setHours(0, 0, 0, 0);
+  const seriesStart = dayStart ? dayStart.getTime() - 6 * 86400000 : 0;
+  const series = Array.from({ length: N }, (_, i) => ({ t: seriesStart + i * BUCKET, runs: 0, cost: 0 }));
+  if (dayStart) {
+    for (const r of runs) {
+      const i = Math.floor((new Date(r.created_at).getTime() - seriesStart) / BUCKET);
+      if (i >= 0 && i < N) { series[i].runs += 1; series[i].cost += r.usage?.cost_usd ?? 0; }
+    }
+  }
+  const runs7 = series.reduce((a, b) => a + b.runs, 0);
+  const cost7 = series.reduce((a, b) => a + b.cost, 0);
   const kpis: [LucideIcon, string, string, string][] = [
     [LayoutGrid, "Graphs", String(graphs.length), `${healthy} ready`],
     [Activity, "Runs", String(runs.length), `${byStatus.paused ?? 0} waiting on a human`],
@@ -357,36 +374,49 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
   return (
     <>
       <section className="card relative overflow-hidden">
-        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(70%_120%_at_20%_0%,black,transparent)]" />
-        <div aria-hidden className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
-        <div className="relative flex flex-col gap-4 p-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
-              <Zap size={11} /> Time-travel debugging for agent workflows
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(80%_120%_at_15%_0%,black,transparent)]" />
+        <div aria-hidden className="pointer-events-none absolute -top-32 -left-24 h-96 w-96 rounded-full bg-accent/15 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-24 -bottom-32 h-80 w-80 rounded-full bg-sky-400/8 blur-3xl" />
+        <div className="relative grid gap-6 p-6 md:p-7 xl:grid-cols-[1.15fr_1fr]">
+          <div className="flex min-w-0 flex-col">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted uppercase"><Logo size="sm" /> Agent Studio</span>
+              <span className="pill border border-accent/30 bg-accent/10 text-accent"><Zap size={11} /> Time-travel debugging</span>
+              <span className="pill border border-edge-2 bg-panel-2 text-muted">LangGraph · Postgres · MCP</span>
             </div>
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] md:text-[32px]">
-              Build, run, <span className="text-accent">rewind.</span>
+            <h1 className="mt-5 text-[36px] leading-[1.02] font-semibold tracking-[-0.03em] md:text-[46px]">
+              Build agents on a canvas.
+              <br />
+              Run, <span className="text-accent">rewind</span>, fork.
             </h1>
-            <p className="mt-1.5 max-w-2xl text-[13.5px] leading-relaxed text-muted">
-              Compose multi-agent workflows on a canvas, watch them run live, then scrub back to any checkpoint, edit the state and fork from that step. Evals, model sweeps and MCP tools are built in.
+            <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-muted">
+              Compose multi-agent workflows visually, watch tokens stream through every node, then scrub back to any checkpoint, edit the state and fork a new run from that step. Evals, model sweeps and MCP tools are built in.
             </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <button onClick={onNew} className="btn btn-primary"><Plus size={15} strokeWidth={2.5} /> New graph</button>
+              <button onClick={() => setView("templates")} className="btn btn-ghost"><Sparkles size={14} className="text-accent" /> Browse templates</button>
+              <span className="ml-1 hidden items-center gap-1.5 text-[11px] text-dim sm:flex"><kbd className="kbd">⌘K</kbd> commands · <kbd className="kbd">⌘↵</kbd> run</span>
+            </div>
+            <HeroFlow />
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <div className="card-2 flex items-center divide-x divide-edge-2 text-xs">
+          <div className="card-2 flex min-w-0 flex-col p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 text-sm font-semibold"><TrendingUp size={14} className="text-accent" /> Runs, last 7 days</div>
+              <span className="font-mono text-[11px] text-dim">{runs7} runs · ${cost7.toFixed(5)}</span>
+            </div>
+            {dayStart ? <RunsLine series={series} /> : <div className="mt-3 min-h-[150px] flex-1 animate-pulse rounded-lg bg-panel-3/40" />}
+            <div className="mt-3 grid grid-cols-3 divide-x divide-edge-2 border-t border-edge-2 pt-3 text-xs">
               {[
                 ["graphs", graphsOrNull ? graphs.length : "–", ""],
-                ["ready", graphsOrNull ? healthy : "–", "text-emerald-300"],
+                ["ready to run", graphsOrNull ? healthy : "–", "text-emerald-300"],
                 ["templates", templates.length, ""],
-              ].map(([label, value, cls]) => (
-                <div key={String(label)} className="px-3.5 py-2">
-                  <div className={`text-base font-semibold tabular-nums leading-none ${cls}`}>{value}</div>
+              ].map(([label, value, cls], i) => (
+                <div key={String(label)} className={i ? "px-3" : "pr-3"}>
+                  <div className={`text-lg font-semibold tabular-nums leading-none ${cls}`}>{value}</div>
                   <div className="mt-1 text-[10.5px] text-dim">{label}</div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setView("templates")} className="btn btn-ghost">
-              <Sparkles size={14} className="text-accent" /> Browse templates
-            </button>
           </div>
         </div>
       </section>
@@ -423,20 +453,6 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
           <CardHead icon={Coins} title="Spend per graph" hint="USD" />
           <Bars rows={topCost} color="#fbbf24" fmt={(v) => `$${v.toFixed(5)}`} />
           <div className="mt-auto flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>average per run</span><b className="font-mono text-fg">${runs.length ? (cost / runs.length).toFixed(6) : "0"}</b></div>
-        </div>
-      </div>
-
-      <div className="card p-4">
-        <CardHead title="Activity by hour" hint="runs started" />
-        <div className="flex h-24 items-end gap-2">
-          {hours.map(([k, v]) => { const max = Math.max(...hours.map((h) => h[1]), 1); return (
-            <div key={k} className="group flex flex-1 flex-col items-center gap-1.5" title={`${v} runs`}>
-              <span className="font-mono text-[10px] text-dim opacity-0 transition group-hover:opacity-100">{v}</span>
-              <div className="w-full rounded-t-md bg-accent/70 transition group-hover:bg-accent" style={{ height: `${Math.max(4, (v / max) * 56)}px` }} />
-              <span className="font-mono text-[9.5px] text-dim">{k}</span>
-            </div>
-          ); })}
-          {!hours.length && <p className="text-[11px] text-dim">no runs yet</p>}
         </div>
       </div>
 
@@ -965,6 +981,113 @@ const guideNotes: Record<NodeType, string> = {
   code: "python · sandboxed",
   end: "final vars",
 };
+
+/* ---------------- hero visuals ---------------- */
+
+/** A tiny animated workflow: the product in one glance. */
+function HeroFlow() {
+  const nodes: [number, string, string][] = [
+    [0, "Start", "#34d399"],
+    [1, "Model", "#38bdf8"],
+    [2, "Human", "#f472b6"],
+    [3, "Router", "#a78bfa"],
+    [4, "End", "#fb7185"],
+  ];
+  const x = (i: number) => 12 + i * 122;
+  return (
+    <svg viewBox="0 0 520 78" className="mt-auto h-[72px] w-full max-w-[520px] pt-4 text-fg" aria-hidden>
+      <defs>
+        <marker id="hf-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="#3a3a44" />
+        </marker>
+      </defs>
+      {/* straight edges */}
+      {[0, 1, 2, 3].map((i) => (
+        <g key={i}>
+          <path d={`M${x(i) + 92} 48 H${x(i + 1) - 2}`} stroke="#3a3a44" strokeWidth="1.5" fill="none" markerEnd="url(#hf-arrow)" />
+          <path d={`M${x(i) + 92} 48 H${x(i + 1) - 2}`} stroke="var(--accent)" strokeWidth="1.5" fill="none" className="flow-dash" />
+        </g>
+      ))}
+      {/* feedback edge: router → model */}
+      <path d={`M${x(3) + 46} 34 C ${x(3) + 46} 8, ${x(1) + 46} 8, ${x(1) + 46} 32`} stroke="#3a3a44" strokeWidth="1.5" fill="none" markerEnd="url(#hf-arrow)" />
+      <path d={`M${x(3) + 46} 34 C ${x(3) + 46} 8, ${x(1) + 46} 8, ${x(1) + 46} 32`} stroke="#a78bfa" strokeWidth="1.5" fill="none" className="flow-dash" style={{ animationDuration: "1.8s" }} />
+      <text x={x(2) + 46} y="16" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill="#6b6b78">changes requested</text>
+      {nodes.map(([i, label, color]) => (
+        <g key={label} transform={`translate(${x(i)} 34)`}>
+          <rect width="92" height="28" rx="8" fill="var(--panel)" stroke="var(--edge-2)" />
+          <rect x="0.5" y="0.5" width="91" height="27" rx="7.5" fill="none" stroke={color} strokeOpacity="0.35" />
+          <circle cx="14" cy="14" r="3.5" fill={color} />
+          <text x="26" y="18" fontSize="11" fontWeight="600" fill="currentColor">{label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** Lime area line chart with hover readout. Paths scale to the box; the stroke stays 2px. */
+function RunsLine({ series }: { series: { t: number; runs: number; cost: number }[] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const W = 600, H = 150, PAD = 6;
+  const max = Math.max(1, ...series.map((p) => p.runs));
+  const n = series.length;
+  const px = (i: number) => (i / (n - 1)) * W;
+  const py = (v: number) => H - PAD - (v / max) * (H - PAD * 2);
+  // smooth curve through the points (Catmull-Rom → cubic bezier)
+  const pts = series.map((p, i) => [px(i), py(p.runs)] as [number, number]);
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x} ${c1y}, ${c2x} ${c2y}, ${p2[0]} ${p2[1]}`;
+  }
+  const area = `${d} L${W} ${H} L0 ${H} Z`;
+  const days = series.map((p, i) => [i, new Date(p.t)] as const).filter(([, dt]) => dt.getHours() === 0);
+  const h = hover != null ? series[hover] : null;
+  const fmtT = (t: number) => new Date(t).toLocaleString(undefined, { weekday: "short", hour: "2-digit" });
+  return (
+    <div className="mt-3 flex min-h-0 flex-1 flex-col">
+      <div
+        className="relative min-h-[140px] w-full flex-1"
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setHover(Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left) / r.width) * (n - 1)))));
+        }}
+        onMouseLeave={() => setHover(null)}
+      >
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <defs>
+            <linearGradient id="rl-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((f) => (
+            <line key={f} x1="0" x2={W} y1={py(max * f)} y2={py(max * f)} stroke="var(--edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d={area} fill="url(#rl-fill)" />
+          <path d={d} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {h && (
+          <>
+            <div className="pointer-events-none absolute inset-y-0 w-px bg-accent/50" style={{ left: `${(hover! / (n - 1)) * 100}%` }} />
+            <div className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-canvas" style={{ left: `${(hover! / (n - 1)) * 100}%`, top: `${(py(h.runs) / H) * 100}%` }} />
+            <div className={`pointer-events-none absolute top-1 rounded-lg border border-edge-2 bg-panel px-2 py-1 text-[10.5px] shadow-lg ${hover! > n / 2 ? "-translate-x-full" : ""}`} style={{ left: `${(hover! / (n - 1)) * 100}%`, marginLeft: hover! > n / 2 ? -8 : 8 }}>
+              <div className="text-muted">{fmtT(h.t)}</div>
+              <div className="font-mono text-fg">{h.runs} run{h.runs === 1 ? "" : "s"} · ${h.cost.toFixed(5)}</div>
+            </div>
+          </>
+        )}
+        <span className="pointer-events-none absolute top-0 right-0 font-mono text-[9.5px] text-dim">max {max}</span>
+      </div>
+      <div className="relative mt-1 h-4 font-mono text-[9.5px] text-dim">
+        {days.map(([i, dt]) => (
+          <span key={i} className="absolute -translate-x-1/2" style={{ left: `${(i / (n - 1)) * 100}%` }}>{dt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /* ---------------- charts ---------------- */
 

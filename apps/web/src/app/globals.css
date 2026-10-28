@@ -335,3 +335,14 @@ body {
   background-size: 200% 100%;
   animation: sweep 1.4s linear infinite;
 }
+
+/* animated dashed edges in the hero illustration */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+.flow-dash {
+  stroke-dasharray: 6 10;
+  animation: flow-dash 1.1s linear infinite;
+}
