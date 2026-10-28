@@ -1089,7 +1089,6 @@ function HeroFlow() {
       {/* feedback edge: router → model */}
       <path d={`M${x(3) + 46} 34 C ${x(3) + 46} 8, ${x(1) + 46} 8, ${x(1) + 46} 32`} stroke="#3a3a44" strokeWidth="1.5" fill="none" markerEnd="url(#hf-arrow)" />
       <path d={`M${x(3) + 46} 34 C ${x(3) + 46} 8, ${x(1) + 46} 8, ${x(1) + 46} 32`} stroke="#a78bfa" strokeWidth="1.5" fill="none" className="flow-dash" style={{ animationDuration: "1.8s" }} />
-      <text x={x(2) + 46} y="16" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill="#6b6b78">changes requested</text>
       {nodes.map(([i, label, color]) => (
         <g key={label} transform={`translate(${x(i)} 34)`}>
           <rect width="92" height="28" rx="8" fill="var(--panel)" stroke="var(--edge-2)" />
