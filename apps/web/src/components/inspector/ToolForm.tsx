@@ -54,7 +54,7 @@ export function ToolForm({ config, vars, onChange }: Props) {
           expects{" "}
           {Object.entries(current.schema.properties as Record<string, { type?: string }>).map(([k, v], i, arr) => (
             <span key={k}>
-              <span className="font-mono text-sky-300">{k}</span>
+              <span className="font-mono text-accent">{k}</span>
               {v?.type ? <span className="text-muted/70">: {v.type}</span> : null}
               {i < arr.length - 1 ? ", " : ""}
             </span>

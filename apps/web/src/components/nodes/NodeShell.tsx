@@ -20,20 +20,20 @@ type Props = {
 };
 
 const tones: Record<string, string> = {
-  emerald: "border-emerald-500/40 [--tone:theme(colors.emerald.400)]",
-  rose: "border-rose-500/40 [--tone:theme(colors.rose.400)]",
-  sky: "border-sky-500/40 [--tone:theme(colors.sky.400)]",
-  amber: "border-amber-500/40 [--tone:theme(colors.amber.400)]",
-  violet: "border-violet-500/40 [--tone:theme(colors.violet.400)]",
-  pink: "border-pink-500/40 [--tone:theme(colors.pink.400)]",
-  teal: "border-teal-500/40 [--tone:theme(colors.teal.400)]",
+  emerald: "[--tone:theme(colors.emerald.400)]",
+  rose: "[--tone:theme(colors.rose.400)]",
+  sky: "[--tone:theme(colors.sky.400)]",
+  amber: "[--tone:theme(colors.amber.400)]",
+  violet: "[--tone:theme(colors.violet.400)]",
+  pink: "[--tone:theme(colors.pink.400)]",
+  teal: "[--tone:theme(colors.teal.400)]",
 };
 
 const statusRing: Record<string, string> = {
-  running: "ring-2 ring-sky-400/80 shadow-[0_0_24px] shadow-sky-500/30 animate-pulse",
-  done: "ring-1 ring-emerald-400/60",
-  error: "ring-2 ring-rose-400/80",
-  paused: "ring-2 ring-pink-400/80 shadow-[0_0_24px] shadow-pink-500/30",
+  running: "border-sky-400/70 shadow-[0_0_0_3px_rgb(56_189_248/0.18),0_12px_32px_-8px_rgb(56_189_248/0.5)]",
+  done: "border-emerald-400/50",
+  error: "border-rose-400/80 shadow-[0_0_0_3px_rgb(251_113_133/0.2)]",
+  paused: "border-pink-400/80 shadow-[0_0_0_3px_rgb(244_114_182/0.2),0_12px_32px_-8px_rgb(244_114_182/0.5)]",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -50,7 +50,7 @@ function Stream({ text }: { text: string }) {
     ref.current?.scrollTo({ top: ref.current.scrollHeight });
   }, [text]);
   return (
-    <div ref={ref} className="nodrag nowheel absolute inset-x-0 top-full z-20 mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg border border-sky-500/40 bg-panel/95 px-3 py-1.5 font-mono text-[10.5px] leading-snug text-sky-100 shadow-xl shadow-black/40 backdrop-blur">
+    <div ref={ref} className="nodrag nowheel absolute inset-x-0 top-full z-20 mt-1.5 max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg border border-sky-400/40 bg-panel/95 px-3 py-1.5 font-mono text-[10.5px] leading-snug text-sky-100 shadow-xl shadow-black/50 backdrop-blur">
       {text}
       <span className="ml-0.5 inline-block h-3 w-1 animate-pulse bg-sky-300 align-middle" />
     </div>
@@ -70,8 +70,8 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
 
   return (
     <div
-      className={`group relative min-w-44 max-w-64 rounded-xl border bg-panel text-sm shadow-lg shadow-black/30 transition-shadow ${tones[tone]} ${
-        selected ? "ring-2 ring-(--tone) ring-offset-2 ring-offset-canvas" : (statusRing[status] ?? "")
+      className={`group relative min-w-48 max-w-64 rounded-xl border bg-panel text-sm shadow-[0_8px_24px_-8px_rgb(0_0_0/0.6)] transition-[box-shadow,border-color] ${tones[tone]} ${
+        selected ? "border-accent shadow-[0_0_0_3px_rgb(197_241_53/0.22),0_12px_32px_-8px_rgb(0_0_0/0.7)]" : (statusRing[status] ?? "border-edge-2")
       }`}
       style={heat != null && heat > 0 ? { boxShadow: `0 0 0 2px rgb(251 191 36 / ${0.25 + heat * 0.75}), 0 0 ${8 + heat * 28}px rgb(251 191 36 / ${heat * 0.7})` } : undefined}
     >
@@ -80,14 +80,16 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
           {Math.round(heat * 100)}%
         </span>
       )}
-      {input && <Handle type="target" position={Position.Top} className="!h-2.5 !w-2.5 !border-2 !border-canvas !bg-(--tone)" />}
-      <div className="flex items-center gap-2 px-3 py-2">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-(--tone)/15 text-(--tone)">
+      {input && <Handle type="target" position={Position.Top} className="!h-3 !w-3 !rounded-full !border-2 !border-(--tone) !bg-panel" />}
+      {/* tone strip along the top edge */}
+      <div className="absolute inset-x-3 top-0 h-px bg-(--tone)/70" />
+      <div className="flex items-center gap-2.5 rounded-t-xl px-3 py-2.5" style={{ background: "linear-gradient(180deg, color-mix(in srgb, var(--tone) 9%, transparent), transparent)" }}>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-(--tone)/15 text-(--tone) ring-1 ring-(--tone)/25">
           <Icon size={14} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-medium text-fg">{title}</div>
-          {subtitle && <div className="truncate text-[11px] text-muted">{subtitle}</div>}
+          <div className="truncate text-[13px] font-semibold tracking-tight text-fg">{title}</div>
+          {subtitle && <div className="truncate font-mono text-[10px] text-muted">{subtitle}</div>}
         </div>
         {retries > 0 && status === "running" && (
           <span className="rounded bg-amber-400/15 px-1 text-[10px] text-amber-300" title="rate limited or connection error; backing off">retry ×{retries}</span>
@@ -97,14 +99,15 @@ export function NodeShell({ id, selected, icon: Icon, tone, title, subtitle, inp
           <span title={issues.map((i) => i.message).join("\n")} className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px] shadow-amber-400/60" />
         )}
       </div>
-      {children && <div className="border-t border-white/5 px-3 py-2 text-[11px] text-muted">{children}</div>}
+      {children && <div className="border-t border-edge px-3 py-2 text-[11px] leading-relaxed text-muted">{children}</div>}
+      {status === "running" && <div className="node-running pointer-events-none absolute inset-x-0 bottom-0 h-0.5 rounded-b-xl" />}
       {status === "running" && tokens && <Stream text={tokens} />}
       {typeof preview === "string" && preview && (
-        <div className="nodrag nowheel pointer-events-none absolute inset-x-0 top-full z-20 mt-1 hidden max-h-28 overflow-hidden rounded-lg border border-emerald-500/40 bg-panel/95 px-3 py-1.5 text-[10.5px] leading-snug text-emerald-100/90 shadow-xl shadow-black/40 backdrop-blur group-hover:block">
+        <div className="nodrag nowheel pointer-events-none absolute inset-x-0 top-full z-20 mt-1.5 hidden max-h-28 overflow-hidden rounded-lg border border-emerald-400/40 bg-panel/95 px-3 py-1.5 text-[10.5px] leading-snug text-emerald-100/90 shadow-xl shadow-black/50 backdrop-blur group-hover:block">
           {preview.length > 240 ? preview.slice(0, 239) + "…" : preview}
         </div>
       )}
-      {output && <Handle type="source" position={Position.Bottom} className="!h-2.5 !w-2.5 !border-2 !border-canvas !bg-(--tone)" />}
+      {output && <Handle type="source" position={Position.Bottom} className="!h-3 !w-3 !rounded-full !border-2 !border-(--tone) !bg-panel" />}
     </div>
   );
 }

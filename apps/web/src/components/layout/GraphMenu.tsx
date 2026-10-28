@@ -57,24 +57,24 @@ export function GraphMenu() {
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="rounded p-1.5 text-muted hover:bg-white/5 hover:text-fg" title="More">
+      <button onClick={() => setOpen((o) => !o)} className="icon-btn" title="More">
         <MoreHorizontal size={16} />
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-1 w-64 rounded-lg border border-edge bg-panel p-1 text-sm shadow-2xl">
-          <button onClick={exportJson} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-fg hover:bg-white/5">
+        <div className="card absolute right-0 z-40 mt-1.5 w-64 p-1.5 text-[13px] shadow-2xl shadow-black/60">
+          <button onClick={exportJson} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-fg hover:bg-panel-3">
             <Download size={14} className="text-muted" /> Export JSON
           </button>
-          <button onClick={duplicate} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-fg hover:bg-white/5">
+          <button onClick={duplicate} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-fg hover:bg-panel-3">
             <Copy size={14} className="text-muted" /> Duplicate
           </button>
-          <button onClick={share} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-fg hover:bg-white/5">
+          <button onClick={share} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-fg hover:bg-panel-3">
             {copied ? <Check size={14} className="text-emerald-300" /> : <Link2 size={14} className="text-muted" />} {copied ? "Link copied" : "Copy read-only link"}
           </button>
           {shareUrl && (
             <>
-              <div className="truncate px-2 py-1 font-mono text-[10px] text-muted" title={shareUrl}>{shareUrl}</div>
-              <button onClick={unshare} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-rose-300 hover:bg-white/5">
+              <div className="mx-1 my-1 truncate rounded-md bg-panel-2 px-2 py-1 font-mono text-[10px] text-muted" title={shareUrl}>{shareUrl}</div>
+              <button onClick={unshare} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-rose-300 hover:bg-panel-3">
                 <Link2Off size={14} /> Disable link
               </button>
             </>

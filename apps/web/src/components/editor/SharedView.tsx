@@ -5,6 +5,7 @@ import "@xyflow/react/dist/style.css";
 import { Copy, Eye } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Logo } from "@/components/layout/Logo";
 import { nodeTypes } from "@/components/nodes";
 import { api } from "@/lib/api";
 import type { GraphSpec } from "@/lib/types";
@@ -28,20 +29,21 @@ export function SharedView() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-edge bg-panel px-4">
-        <Eye size={15} className="text-muted" />
+        <Logo size="sm" />
+        <span className="pill border border-edge-2 bg-panel-2 text-muted"><Eye size={11} /> read-only</span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{spec.name}</div>
           {spec.description && <div className="truncate text-[11px] text-muted">{spec.description}</div>}
         </div>
-        <span className="text-xs text-muted">read-only · {spec.nodes.length} nodes</span>
-        <button onClick={async () => router.push(`/graphs/${(await api.forkShared(token)).id}`)} className="flex items-center gap-1.5 rounded-md bg-sky-500/15 px-3 py-1.5 text-sm font-medium text-sky-300 hover:bg-sky-500/25">
-          <Copy size={14} /> Copy to my graphs
+        <span className="font-mono text-[11px] text-dim">{spec.nodes.length} nodes</span>
+        <button onClick={async () => router.push(`/graphs/${(await api.forkShared(token)).id}`)} className="btn btn-sm btn-primary">
+          <Copy size={13} /> Copy to my graphs
         </button>
       </header>
       <div className="min-h-0 flex-1">
         <ReactFlowProvider>
           <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.3, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} defaultEdgeOptions={{ type: "smoothstep" }} className="bg-canvas">
-            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--grid)" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="var(--grid)" />
             <Controls position="bottom-left" showInteractive={false} />
           </ReactFlow>
         </ReactFlowProvider>

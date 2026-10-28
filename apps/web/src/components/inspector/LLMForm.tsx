@@ -35,7 +35,7 @@ export function LLMForm({ config, vars, onChange }: Props) {
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Temperature" hint={String(config.temperature)}>
-          <input type="range" min={0} max={2} step={0.1} value={config.temperature} onChange={(e) => onChange({ temperature: Number(e.target.value) })} className="w-full accent-sky-400" />
+          <input type="range" min={0} max={2} step={0.1} value={config.temperature} onChange={(e) => onChange({ temperature: Number(e.target.value) })} className="w-full accent-(--accent)" />
         </Field>
         <Field label="Max tokens">
           <TextInput type="number" min={1} max={32000} value={config.max_tokens} onChange={(e) => onChange({ max_tokens: Math.min(32000, Math.max(1, Number(e.target.value) || 1)) })} />

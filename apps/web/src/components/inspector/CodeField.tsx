@@ -25,8 +25,8 @@ if (typeof window !== "undefined") {
       monaco.editor.defineTheme("studio", {
         base: "vs-dark",
         inherit: true,
-        rules: [{ token: "variable", foreground: "7dd3fc", fontStyle: "bold" }],
-        colors: { "editor.background": "#0b0d12", "editorLineNumber.foreground": "#3b4252", "editor.lineHighlightBackground": "#12151c" },
+        rules: [{ token: "variable", foreground: "c5f135", fontStyle: "bold" }],
+        colors: { "editor.background": "#17171a", "editorLineNumber.foreground": "#4a4a55", "editor.lineHighlightBackground": "#1e1e22", "editorCursor.foreground": "#c5f135" },
       });
     })
     .catch(() => {});
@@ -36,7 +36,7 @@ export function CodeField({ value, onChange, language, height = 120 }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
   return (
-    <div className="overflow-hidden rounded-md border border-edge focus-within:border-sky-500/60">
+    <div className="overflow-hidden rounded-[9px] border border-edge-2 transition focus-within:border-accent/55 focus-within:shadow-[0_0_0_3px_rgb(197_241_53/0.12)]">
       <Editor
         height={height}
         language={language}
@@ -65,7 +65,7 @@ export function CodeField({ value, onChange, language, height = 120 }: Props) {
           tabSize: 4,
           automaticLayout: true,
         }}
-        loading={<div className="h-full bg-canvas" style={{ height }} />}
+        loading={<div className="h-full bg-panel-2" style={{ height }} />}
       />
     </div>
   );

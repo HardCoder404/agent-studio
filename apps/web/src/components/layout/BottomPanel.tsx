@@ -76,7 +76,7 @@ function Console() {
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-edge px-3 py-1 text-[11px] text-muted">
         <span className="font-mono">{runId.slice(0, 8)}</span>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="rounded border border-edge bg-canvas px-1 py-0.5 text-[11px] text-fg">
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="input w-auto px-1.5 py-0.5 text-[11px]">
           <option value="">all nodes</option>
           {nodes.map((n) => (
             <option key={n} value={n}>
@@ -140,9 +140,9 @@ function Runs() {
   for (const r of runs) if (!ordered.some((o) => o.run.id === r.id)) ordered.push({ run: r, depth: 0 }); // parent outside the page
 
   return (
-    <ul className="divide-y divide-edge/60 overflow-y-auto text-xs">
+    <ul className="divide-y divide-edge overflow-y-auto text-xs">
       {ordered.map(({ run: r, depth }) => (
-        <li key={r.id} onClick={() => open(r)} className={`flex cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-white/5 ${r.id === current ? "bg-white/5" : ""}`} style={{ paddingLeft: 12 + depth * 18 }}>
+        <li key={r.id} onClick={() => open(r)} className={`flex cursor-pointer items-center gap-3 px-3 py-1.5 transition hover:bg-panel-2 ${r.id === current ? "bg-accent/5" : ""}`} style={{ paddingLeft: 12 + depth * 18 }}>
           {depth > 0 && <span className="text-violet-300" title="forked run">⑂</span>}
           <span className="font-mono text-muted">{r.id.slice(0, 8)}</span>
           <span className={`w-16 ${statusColor[r.status] ?? "text-muted"}`}>{r.status}</span>
@@ -169,10 +169,12 @@ export function BottomPanel() {
     if (runId) setOpen(true);
   }
 
+  const statusTone: Record<string, string> = { done: "bg-emerald-400", error: "bg-rose-400", paused: "bg-pink-400", running: "bg-sky-400", cancelled: "bg-amber-400", queued: "bg-zinc-500" };
+
   return (
-    <section className={`flex shrink-0 flex-col border-t border-edge bg-panel transition-[height] ${open ? (tab === "evals" || tab === "tools" ? "h-96" : "h-72") : "h-9"}`}>
-      <div className="flex h-9 shrink-0 items-center gap-1 px-2 text-xs">
-        <button onClick={() => setOpen((o) => !o)} className="rounded p-1 text-muted hover:text-fg">
+    <section className={`flex shrink-0 flex-col border-t border-edge bg-panel transition-[height] ${open ? (tab === "evals" || tab === "tools" ? "h-96" : "h-72") : "h-10"}`}>
+      <div className="flex h-10 shrink-0 items-stretch gap-0.5 border-b border-edge px-2 text-xs">
+        <button onClick={() => setOpen((o) => !o)} className="icon-btn my-auto" title={open ? "Collapse" : "Expand"}>
           {open ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </button>
         {(
@@ -188,16 +190,21 @@ export function BottomPanel() {
         ).map(([id, Icon, label]) => (
           <button
             key={id}
+            data-active={tab === id && open}
             onClick={() => {
               setTab(id);
               setOpen(true);
             }}
-            className={`flex items-center gap-1.5 rounded px-2 py-1 font-medium uppercase tracking-wider ${tab === id && open ? "bg-white/5 text-fg" : "text-muted hover:text-fg"}`}
+            className={`tab-underline flex items-center gap-1.5 px-2.5 text-[12px] font-medium transition ${tab === id && open ? "text-fg" : "text-muted hover:text-fg"}`}
           >
-            <Icon size={12} /> {label}
+            <Icon size={12} className={tab === id && open ? "text-accent" : ""} /> {label}
           </button>
         ))}
-        {status && <span className="ml-auto text-muted">{status}</span>}
+        {status && (
+          <span className="pill my-auto ml-auto border border-edge-2 bg-panel-2 text-muted">
+            <span className={`h-1.5 w-1.5 rounded-full ${statusTone[status] ?? "bg-zinc-500"}`} /> {status}
+          </span>
+        )}
       </div>
       {open && <div className="min-h-0 flex-1">{tab === "timeline" ? <Timeline /> : tab === "console" ? <Console /> : tab === "runs" ? <Runs /> : tab === "compare" ? <Compare /> : tab === "evals" ? <Evals /> : tab === "cost" ? <Cost /> : <Tools />}</div>}
     </section>

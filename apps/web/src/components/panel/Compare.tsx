@@ -61,7 +61,7 @@ export function Compare() {
   if (!runs.length) return <p className="px-3 py-2 text-xs text-muted">Run the graph at least twice (or fork a run) to compare.</p>;
 
   const pick = (which: "a" | "b") => (
-    <select value={(which === "a" ? effA : effB) ?? ""} onChange={(e) => (which === "a" ? setAId(e.target.value) : setBId(e.target.value))} className="max-w-[16rem] rounded border border-edge bg-canvas px-1 py-0.5 text-[11px] text-fg">
+    <select value={(which === "a" ? effA : effB) ?? ""} onChange={(e) => (which === "a" ? setAId(e.target.value) : setBId(e.target.value))} className="max-w-[16rem] rounded border border-edge bg-panel-2 px-1 py-0.5 text-[11px] text-fg">
       {runs.map((r) => (
         <option key={r.id} value={r.id}>
           {r.id.slice(0, 8)} · {r.status} · {new Date(r.created_at).toLocaleTimeString()} {r.parent_run_id ? "(fork)" : ""}
@@ -75,7 +75,7 @@ export function Compare() {
       <div className="flex items-center gap-2 border-b border-edge px-3 py-1 text-[11px] text-muted">
         <span className="text-sky-300">A</span> {pick("a")}
         <span className="ml-3 text-violet-300">B</span> {pick("b")}
-        <button onClick={() => { setAId(effB); setBId(effA); }} className="ml-auto rounded px-1.5 py-0.5 hover:bg-white/5 hover:text-fg">swap</button>
+        <button onClick={() => { setAId(effB); setBId(effA); }} className="ml-auto rounded px-1.5 py-0.5 hover:bg-panel-3 hover:text-fg">swap</button>
       </div>
       {a && b ? <Body a={a} b={b} labelOf={labelOf} /> : <p className="px-3 py-2 text-xs text-muted">Loading…</p>}
     </div>
@@ -133,8 +133,8 @@ function Body({ a, b, labelOf }: { a: Loaded; b: Loaded; labelOf: Record<string,
       <div className="overflow-y-auto px-3 py-2 text-[11px]">
         <div className="mb-1 text-muted">final variables · {changes.length ? `${changes.length} differ` : "identical"}</div>
         {changes.map((c) => (
-          <div key={c.path} className="mb-2 rounded-md border border-edge bg-canvas p-2">
-            <div className="mb-1 font-mono text-sky-300">{c.path}</div>
+          <div key={c.path} className="mb-2 rounded-md border border-edge bg-panel-2 p-2">
+            <div className="mb-1 font-mono text-accent">{c.path}</div>
             {typeof c.before === "string" && typeof c.after === "string" ? (
               <p className="whitespace-pre-wrap leading-relaxed text-fg">
                 {wordDiff(c.before, c.after).map(([k, t], i) => (

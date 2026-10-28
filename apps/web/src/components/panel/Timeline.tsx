@@ -91,7 +91,7 @@ export function Timeline() {
               const dur = s.end - s.start;
               const active = picked?.key === s.key;
               return (
-                <div key={s.key} onClick={() => pick(s)} className={`flex h-7 cursor-pointer items-center text-[11px] hover:bg-white/[.03] ${active ? "bg-white/5" : ""}`}>
+                <div key={s.key} onClick={() => pick(s)} className={`flex h-7 cursor-pointer items-center text-[11px] hover:bg-panel-2 ${active ? "bg-panel-3" : ""}`}>
                   <div className="w-36 shrink-0 truncate px-3 text-muted">
                     {s.kind === "wait" ? <span className="text-pink-300">waiting · {labelOf[s.node ?? ""] ?? s.node}</span> : (labelOf[s.node ?? ""] ?? s.node)}
                   </div>
@@ -157,7 +157,7 @@ function StepDetail({ span, label, onClose }: { span: Span; label: string; onClo
         {span.output && (
           <div>
             <div className="mb-0.5 text-muted">output</div>
-            <pre className="whitespace-pre-wrap rounded-md border border-edge bg-canvas p-2 font-mono text-[10.5px] text-fg">{JSON.stringify(span.output, null, 2)}</pre>
+            <pre className="whitespace-pre-wrap rounded-md border border-edge bg-panel-2 p-2 font-mono text-[10.5px] text-fg">{JSON.stringify(span.output, null, 2)}</pre>
           </div>
         )}
       </div>

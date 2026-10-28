@@ -26,7 +26,7 @@ export function RouterForm({ nodeId, config, vars, onChange }: Props) {
   return (
     <div className="space-y-3">
       <Field label="Mode">
-        <div className="grid grid-cols-2 gap-1 rounded-md border border-edge bg-canvas p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-md border border-edge bg-panel-2 p-1">
           {(["rule", "llm"] as const).map((m) => (
             <button key={m} type="button" onClick={() => onChange({ mode: m })} className={`rounded px-2 py-1 text-xs ${config.mode === m ? "bg-violet-500/20 text-violet-200" : "text-muted hover:text-fg"}`}>
               {m === "rule" ? "Rule (expression)" : "Ask a model"}
@@ -66,13 +66,13 @@ export function RouterForm({ nodeId, config, vars, onChange }: Props) {
       <div>
         <div className="mb-1 flex items-center justify-between text-xs text-muted">
           <span>Branches</span>
-          <button type="button" onClick={addBranch} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-violet-300 hover:bg-white/5">
+          <button type="button" onClick={addBranch} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-violet-300 hover:bg-panel-3">
             <Plus size={11} /> add
           </button>
         </div>
         <div className="space-y-2">
           {config.branches.map((b) => (
-            <div key={b.label} className="rounded-md border border-edge bg-canvas p-2">
+            <div key={b.label} className="rounded-md border border-edge bg-panel-2 p-2">
               <div className="flex items-center gap-1.5">
                 <TextInput
                   defaultValue={b.label}

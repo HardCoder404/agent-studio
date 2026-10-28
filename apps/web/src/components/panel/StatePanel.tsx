@@ -65,7 +65,7 @@ export function StatePanel() {
           <button onClick={() => go(index - 1)} disabled={index <= 0} className="rounded p-1 text-muted hover:text-fg disabled:opacity-30">
             <ChevronLeft size={14} />
           </button>
-          <input type="range" min={0} max={list.length - 1} value={index} onChange={(e) => go(Number(e.target.value))} className="flex-1 accent-sky-400" />
+          <input type="range" min={0} max={list.length - 1} value={index} onChange={(e) => go(Number(e.target.value))} className="flex-1 accent-(--accent)" />
           <button onClick={() => go(index + 1)} disabled={index >= list.length - 1} className="rounded p-1 text-muted hover:text-fg disabled:opacity-30">
             <ChevronRight size={14} />
           </button>
@@ -73,9 +73,9 @@ export function StatePanel() {
       </div>
 
       {/* step list */}
-      <ol className="mx-4 mt-2 max-h-36 overflow-y-auto rounded-md border border-edge bg-canvas text-[11px]">
+      <ol className="mx-4 mt-2 max-h-36 overflow-y-auto rounded-md border border-edge bg-panel-2 text-[11px]">
         {list.map((c, i) => (
-          <li key={c.checkpoint_id} onClick={() => go(i)} className={`flex cursor-pointer items-center gap-2 px-2 py-1 hover:bg-white/5 ${i === index ? "bg-white/5 text-fg" : "text-muted"}`}>
+          <li key={c.checkpoint_id} onClick={() => go(i)} className={`flex cursor-pointer items-center gap-2 px-2 py-1 hover:bg-panel-3 ${i === index ? "bg-panel-3 text-fg" : "text-muted"}`}>
             <span className="w-5 text-right text-muted/60">{i}</span>
             <span className="min-w-0 flex-1 truncate">{c.forked ? <span className="text-violet-300">edited by hand</span> : c.node ? `after ${labelOf[c.node] ?? c.node}` : "run input"}</span>
             {c.interrupted && <span className="text-pink-300">paused</span>}
@@ -85,9 +85,9 @@ export function StatePanel() {
       </ol>
 
       {/* mode */}
-      <div className="mx-4 mt-3 grid grid-cols-2 gap-1 rounded-md border border-edge bg-canvas p-1 text-xs">
+      <div className="mx-4 mt-3 grid grid-cols-2 gap-1 rounded-md border border-edge bg-panel-2 p-1 text-xs">
         {(["diff", "state"] as const).map((m) => (
-          <button key={m} onClick={() => setMode(m)} className={`rounded px-2 py-1 ${mode === m ? "bg-sky-500/20 text-sky-200" : "text-muted hover:text-fg"}`}>
+          <button key={m} onClick={() => setMode(m)} className={`rounded px-2 py-1 ${mode === m ? "bg-accent/15 text-accent" : "text-muted hover:text-fg"}`}>
             {m === "diff" ? `what changed (${changes.length})` : "full state"}
           </button>
         ))}
@@ -116,10 +116,10 @@ function ChangeList({ changes }: { changes: Change[] }) {
   return (
     <ul className="space-y-2">
       {changes.map((c) => (
-        <li key={c.path} className="rounded-md border border-edge bg-canvas p-2 text-[11px]">
+        <li key={c.path} className="rounded-md border border-edge bg-panel-2 p-2 text-[11px]">
           <div className="mb-1 flex items-center gap-2">
-            <span className={`rounded px-1 text-[10px] uppercase ${c.kind === "added" ? "bg-emerald-500/20 text-emerald-200" : c.kind === "removed" ? "bg-rose-500/20 text-rose-200" : "bg-sky-500/20 text-sky-200"}`}>{c.kind}</span>
-            <span className="font-mono text-sky-300">{c.path}</span>
+            <span className={`rounded px-1 text-[10px] uppercase ${c.kind === "added" ? "bg-emerald-500/20 text-emerald-200" : c.kind === "removed" ? "bg-rose-500/20 text-rose-200" : "bg-accent/15 text-accent"}`}>{c.kind}</span>
+            <span className="font-mono text-accent">{c.path}</span>
           </div>
           {c.kind === "changed" && typeof c.before === "string" && typeof c.after === "string" ? (
             <p className="whitespace-pre-wrap leading-relaxed text-fg">
@@ -149,8 +149,8 @@ function JsonView({ value }: { value: Record<string, unknown> }) {
   return (
     <dl className="space-y-2">
       {entries.map(([k, v]) => (
-        <div key={k} className="rounded-md border border-edge bg-canvas p-2 text-[11px]">
-          <dt className="mb-0.5 font-mono text-sky-300">{k}</dt>
+        <div key={k} className="rounded-md border border-edge bg-panel-2 p-2 text-[11px]">
+          <dt className="mb-0.5 font-mono text-accent">{k}</dt>
           <dd className="whitespace-pre-wrap text-fg">{fmt(v)}</dd>
         </div>
       ))}
@@ -192,7 +192,7 @@ function ForkEditor({ runId, checkpoint, onClose }: { runId: string; checkpoint:
         <span className="font-medium text-violet-200">Edit variables, then continue from here in a new run</span>
         <button onClick={onClose} className="text-muted hover:text-fg">×</button>
       </div>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} spellCheck={false} className="w-full rounded-md border border-edge bg-canvas p-2 font-mono text-[11px] text-fg outline-none focus:border-violet-500/60" />
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} spellCheck={false} className="w-full rounded-md border border-edge bg-panel-2 p-2 font-mono text-[11px] text-fg outline-none focus:border-violet-500/60" />
       {error && <p className="mt-1 text-[11px] text-rose-300">{error}</p>}
       <div className="mt-2 flex justify-end gap-2">
         <button onClick={onClose} className="rounded px-2 py-1 text-xs text-muted hover:text-fg">Cancel</button>

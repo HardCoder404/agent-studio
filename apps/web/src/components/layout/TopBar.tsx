@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useStore } from "zustand";
 import { API_URL, api } from "@/lib/api";
 import { GraphMenu } from "./GraphMenu";
+import { Logo } from "./Logo";
 import { useGraphStore, useTemporal } from "@/store/graph";
 import { isTerminal, useRunStore } from "@/store/run";
+
+const runTone: Record<string, string> = { done: "bg-emerald-400", error: "bg-rose-400", paused: "bg-pink-400", running: "bg-sky-400", cancelled: "bg-amber-400", queued: "bg-zinc-500" };
 
 export function TopBar({ onRun }: { onRun: () => void }) {
   const name = useGraphStore((s) => s.name);
@@ -32,57 +35,59 @@ export function TopBar({ onRun }: { onRun: () => void }) {
   }[save];
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-edge bg-panel px-3">
-      <Link href="/graphs" className="rounded p-1.5 text-muted hover:bg-white/5 hover:text-fg" title="All graphs">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-edge bg-panel px-3">
+      <Link href="/graphs" className="icon-btn" title="All graphs">
         <ArrowLeft size={16} />
       </Link>
+      <Link href="/graphs" className="hidden items-center gap-2 pr-1 sm:flex" title="Agent Studio">
+        <Logo size="sm" />
+      </Link>
+      <span className="hidden text-dim sm:inline">/</span>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="min-w-0 flex-1 bg-transparent text-sm font-medium text-fg outline-none"
+        className="min-w-0 flex-1 rounded-md bg-transparent px-1.5 py-1 text-[13.5px] font-semibold tracking-tight text-fg outline-none transition hover:bg-panel-2 focus:bg-panel-2"
         placeholder="Untitled graph"
       />
-      <span className={`flex items-center gap-1.5 text-xs ${status.cls}`} title={saveError ?? undefined}>
-        <status.icon size={13} className={save === "saving" ? "animate-spin" : ""} /> {status.text}
+      <span className={`hidden items-center gap-1.5 text-[11.5px] md:flex ${status.cls}`} title={saveError ?? undefined}>
+        <status.icon size={12} className={save === "saving" ? "animate-spin" : ""} /> {status.text}
       </span>
-      <div className="mx-1 h-5 w-px bg-edge" />
-      <button onClick={() => undo()} disabled={!pastStates.length} className="rounded p-1.5 text-muted hover:bg-white/5 hover:text-fg disabled:opacity-30" title="Undo (⌘Z)">
+      {issues > 0 && (
+        <span className="pill bg-amber-400/10 text-amber-300" title="open the inspector to see the issues">{issues} issue{issues > 1 ? "s" : ""}</span>
+      )}
+      <div className="mx-1 h-5 w-px bg-edge-2" />
+      <button onClick={() => undo()} disabled={!pastStates.length} className="icon-btn" title="Undo (⌘Z)">
         <Undo2 size={15} />
       </button>
-      <button onClick={() => redo()} disabled={!futureStates.length} className="rounded p-1.5 text-muted hover:bg-white/5 hover:text-fg disabled:opacity-30" title="Redo (⇧⌘Z)">
+      <button onClick={() => redo()} disabled={!futureStates.length} className="icon-btn" title="Redo (⇧⌘Z)">
         <Redo2 size={15} />
       </button>
       <GraphMenu />
-      <div className="mx-1 h-5 w-px bg-edge" />
+      <div className="mx-1 h-5 w-px bg-edge-2" />
       {runStatus && (
-        <span
-          className={`flex items-center gap-1.5 text-xs ${
-            { done: "text-emerald-300", error: "text-rose-300", paused: "text-pink-300", running: "text-sky-300", cancelled: "text-amber-300", queued: "text-muted" }[runStatus]
-          }`}
-          title={runError ?? (connected ? "live" : "reconnecting…")}
-        >
-          {busy && <Loader2 size={12} className="animate-spin" />}
-          {runStatus}
-          {usage && runStatus === "done" && <span className="text-muted">· {usage.llm_calls} calls · ${usage.cost_usd}</span>}
+        <span className="pill border border-edge-2 bg-panel-2 text-muted" title={runError ?? (connected ? "live" : "reconnecting…")}>
+          {busy ? <Loader2 size={11} className="animate-spin text-sky-300" /> : <span className={`h-1.5 w-1.5 rounded-full ${runTone[runStatus] ?? "bg-zinc-500"}`} />}
+          <span className="text-fg">{runStatus}</span>
+          {usage && runStatus === "done" && <span className="font-mono text-dim">· {usage.llm_calls} calls · ${usage.cost_usd}</span>}
         </span>
       )}
       {runId && isTerminal(runStatus) && (
-        <a href={`${API_URL}/runs/${runId}/trace`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-muted hover:bg-white/5 hover:text-fg" title="OpenTelemetry-style trace JSON for this run">
+        <a href={`${API_URL}/runs/${runId}/trace`} target="_blank" rel="noreferrer" className="btn btn-sm btn-quiet" title="OpenTelemetry-style trace JSON for this run">
           <ExternalLink size={12} /> trace
         </a>
       )}
       {busy ? (
-        <button onClick={() => runId && api.cancelRun(runId).catch(() => {})} className="flex items-center gap-1.5 rounded-md bg-rose-500/15 px-3 py-1.5 text-sm font-medium text-rose-300 hover:bg-rose-500/25" title="Cancel run">
-          <Square size={13} /> Stop
+        <button onClick={() => runId && api.cancelRun(runId).catch(() => {})} className="btn btn-sm btn-danger" title="Cancel run">
+          <Square size={12} /> Stop
         </button>
       ) : (
         <button
           onClick={onRun}
           disabled={issues > 0 || save === "error"}
           title={issues ? `${issues} issue${issues > 1 ? "s" : ""} to fix first` : "Run (⌘↵)"}
-          className="flex items-center gap-1.5 rounded-md bg-emerald-500/15 px-3 py-1.5 text-sm font-medium text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-40 disabled:hover:bg-emerald-500/15"
+          className="btn btn-sm btn-primary"
         >
-          <Play size={14} /> Run
+          <Play size={13} strokeWidth={2.5} /> Run
         </button>
       )}
     </header>

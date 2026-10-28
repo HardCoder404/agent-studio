@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Bot, Code2, Flag, GitFork, Play, SlidersHorizontal, Trash2, UserRound, Wrench, type LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { StatePanel } from "@/components/panel/StatePanel";
 import { useRunStore } from "@/store/run";
@@ -16,13 +16,23 @@ import { useGraphStore } from "@/store/graph";
 
 type Tab = "node" | "state";
 
+const typeIcon: Record<NodeType, [LucideIcon, string]> = {
+  start: [Play, "bg-emerald-400/12 text-emerald-300"],
+  end: [Flag, "bg-rose-400/12 text-rose-300"],
+  llm: [Bot, "bg-sky-400/12 text-sky-300"],
+  tool: [Wrench, "bg-amber-400/12 text-amber-300"],
+  router: [GitFork, "bg-violet-400/12 text-violet-300"],
+  human: [UserRound, "bg-pink-400/12 text-pink-300"],
+  code: [Code2, "bg-teal-400/12 text-teal-300"],
+};
+
 function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const hasRun = useRunStore((s) => !!s.runId);
   if (!hasRun) return null;
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-0.5 rounded-lg border border-edge-2 bg-panel-2 p-0.5">
       {(["node", "state"] as const).map((t) => (
-        <button key={t} onClick={() => setTab(t)} className={`rounded px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider ${tab === t ? "bg-white/5 text-fg" : "text-muted hover:text-fg"}`}>
+        <button key={t} onClick={() => setTab(t)} className={`rounded-md px-2 py-0.5 text-[11px] font-medium capitalize transition ${tab === t ? "bg-panel-3 text-fg" : "text-muted hover:text-fg"}`}>
           {t}
         </button>
       ))}
@@ -30,21 +40,24 @@ function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   );
 }
 
-function Shell({ title, onDelete, tabs, children }: { title: string; onDelete?: () => void; tabs?: React.ReactNode; children: React.ReactNode }) {
+function Shell({ title, icon, onDelete, tabs, children }: { title: string; icon?: React.ReactNode; onDelete?: () => void; tabs?: React.ReactNode; children: React.ReactNode }) {
   return (
     <aside className="flex w-[22rem] shrink-0 flex-col overflow-y-auto border-l border-edge bg-panel">
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted">{title}</div>
-          {tabs}
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-edge px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {icon}
+          <div className="truncate text-[12.5px] font-semibold tracking-tight">{title}</div>
         </div>
-        {onDelete && (
-          <button onClick={onDelete} className="rounded p-1 text-muted hover:bg-white/5 hover:text-rose-400" title="Delete node (⌫)">
-            <Trash2 size={14} />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {tabs}
+          {onDelete && (
+            <button onClick={onDelete} className="icon-btn hover:!text-rose-400" title="Delete node (⌫)">
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="space-y-3 px-4 pb-4">{children}</div>
+      <div className="space-y-3.5 px-4 py-4">{children}</div>
     </aside>
   );
 }
@@ -65,8 +78,8 @@ export function Inspector() {
 
   if (hasRun && tab === "state") {
     return (
-      <Shell title="Run state" tabs={tabs}>
-        <div className="-mx-4 h-[calc(100vh-8rem)]">
+      <Shell title="Run state" tabs={tabs} icon={<span className="grid h-6 w-6 place-items-center rounded-md bg-accent/12 text-accent"><SlidersHorizontal size={13} /></span>}>
+        <div className="-mx-4 -my-4 h-[calc(100vh-6.75rem)]">
           <StatePanel />
         </div>
       </Shell>
@@ -75,15 +88,15 @@ export function Inspector() {
 
   if (!node) {
     return (
-      <Shell title="Inspector" tabs={tabs}>
-        <p className="text-sm text-muted">Select a node to edit it.</p>
+      <Shell title="Inspector" tabs={tabs} icon={<span className="grid h-6 w-6 place-items-center rounded-md bg-panel-3 text-muted"><SlidersHorizontal size={13} /></span>}>
+        <div className="card-2 p-3 text-[12.5px] leading-relaxed text-muted">Select a node to edit its prompt, model, tool or branches. Drag from a node&apos;s bottom port to connect it.</div>
         {issues.length > 0 && (
           <div>
-            <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-amber-400">Issues ({issues.length})</div>
-            <ul className="space-y-1 text-xs text-muted">
+            <div className="eyebrow mb-1.5 !text-amber-400">Issues ({issues.length})</div>
+            <ul className="space-y-1 rounded-lg border border-amber-400/25 bg-amber-400/5 p-2.5 text-xs text-amber-100/90">
               {issues.map((i, k) => (
                 <li key={k}>
-                  {i.node && <span className="font-mono text-fg">{i.node}: </span>}
+                  {i.node && <span className="font-mono text-amber-300">{i.node}: </span>}
                   {i.message}
                 </li>
               ))}
@@ -98,14 +111,15 @@ export function Inspector() {
   const nodeIssues = issues.filter((i) => i.node === node.id);
   const onChange = (patch: Record<string, unknown>) => updateConfig(node.id, patch);
   const cfg = node.data.config;
+  const [Icon, tile] = typeIcon[type];
 
   return (
-    <Shell title={nodeMeta[type].title} tabs={tabs} onDelete={type !== "start" ? () => removeNode(node.id) : undefined}>
+    <Shell title={nodeMeta[type].title} tabs={tabs} icon={<span className={`grid h-6 w-6 place-items-center rounded-md ${tile}`}><Icon size={13} /></span>} onDelete={type !== "start" ? () => removeNode(node.id) : undefined}>
       <Field label="Label" hint={node.id}>
         <TextInput value={node.data.label} onChange={(e) => updateNode(node.id, { label: e.target.value })} />
       </Field>
       {nodeIssues.length > 0 && (
-        <ul className="space-y-1 rounded-md border border-amber-400/30 bg-amber-400/5 p-2 text-xs text-amber-200">
+        <ul className="space-y-1 rounded-lg border border-amber-400/25 bg-amber-400/5 p-2.5 text-xs text-amber-100/90">
           {nodeIssues.map((i, k) => (
             <li key={k}>{i.message}</li>
           ))}
@@ -116,7 +130,7 @@ export function Inspector() {
       {type === "router" && <RouterForm nodeId={node.id} config={cfg as unknown as RouterConfig} vars={vars} onChange={onChange} />}
       {type === "human" && <HumanForm config={cfg as unknown as HumanConfig} vars={vars} onChange={onChange} />}
       {type === "code" && <CodeForm config={cfg as unknown as CodeConfig} vars={vars} onChange={onChange} />}
-      {(type === "start" || type === "end") && <p className="text-xs text-muted">{nodeMeta[type].hint}</p>}
+      {(type === "start" || type === "end") && <p className="text-xs leading-relaxed text-muted">{nodeMeta[type].hint}</p>}
     </Shell>
   );
 }

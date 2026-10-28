@@ -18,7 +18,7 @@ export function HumanForm({ config, vars, onChange }: Props) {
         {vars.length ? (
           <div className="flex flex-wrap gap-1">
             {vars.map((k) => (
-              <button key={k} type="button" onClick={() => toggle(k)} className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${config.show_keys.includes(k) ? "bg-pink-500/20 text-pink-200" : "bg-white/5 text-muted hover:text-fg"}`}>
+              <button key={k} type="button" onClick={() => toggle(k)} className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${config.show_keys.includes(k) ? "bg-pink-500/20 text-pink-200" : "bg-panel-3 text-muted hover:text-fg"}`}>
                 {k}
               </button>
             ))}

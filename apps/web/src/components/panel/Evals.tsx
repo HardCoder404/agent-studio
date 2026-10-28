@@ -89,7 +89,7 @@ export function Evals() {
           <div className="mb-1 flex items-center justify-between text-muted">
             <span>Dataset</span>
             <div className="flex gap-1">
-              <button onClick={() => setEditing(true)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sky-300 hover:bg-white/5">
+              <button onClick={() => setEditing(true)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-accent hover:bg-panel-3">
                 <Plus size={11} /> {ds ? "edit" : "new"}
               </button>
               {ds && (
@@ -99,7 +99,7 @@ export function Evals() {
               )}
             </div>
           </div>
-          <select value={dsId ?? ""} onChange={(e) => setDsId(e.target.value)} className="w-full rounded border border-edge bg-canvas px-1.5 py-1 text-fg">
+          <select value={dsId ?? ""} onChange={(e) => setDsId(e.target.value)} className="w-full rounded border border-edge bg-panel-2 px-1.5 py-1 text-fg">
             {!datasets.length && <option value="">no datasets yet</option>}
             {datasets.map((d) => (
               <option key={d.id} value={d.id}>
@@ -112,7 +112,7 @@ export function Evals() {
         <div>
           <div className="mb-1 flex items-center justify-between text-muted">
             <span>Scorers</span>
-            <button onClick={() => setScorers((s) => [...s, { kind: "contains", key: outputs[0] ?? "output" }])} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sky-300 hover:bg-white/5">
+            <button onClick={() => setScorers((s) => [...s, { kind: "contains", key: outputs[0] ?? "output" }])} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-accent hover:bg-panel-3">
               <Plus size={11} /> add
             </button>
           </div>
@@ -132,10 +132,10 @@ export function Evals() {
 
         <div>
           <div className="mb-1 text-muted">Past evals</div>
-          <ul className="divide-y divide-edge/60 rounded-md border border-edge bg-canvas">
+          <ul className="divide-y divide-edge rounded-md border border-edge bg-panel-2">
             {!evals.length && <li className="px-2 py-1 text-muted">none yet</li>}
             {evals.map((e) => (
-              <li key={e.id} onClick={() => openEval(e.id)} className={`flex cursor-pointer items-center gap-2 px-2 py-1 hover:bg-white/5 ${open?.id === e.id ? "bg-white/5" : ""}`}>
+              <li key={e.id} onClick={() => openEval(e.id)} className={`flex cursor-pointer items-center gap-2 px-2 py-1 hover:bg-panel-3 ${open?.id === e.id ? "bg-panel-3" : ""}`}>
                 <span className={{ done: "text-emerald-300", error: "text-rose-300", running: "text-sky-300", queued: "text-muted", cancelled: "text-amber-300" }[e.status]}>{e.status}</span>
                 <span className="min-w-0 flex-1 truncate text-muted">{e.dataset_name ?? "dataset"} · v{e.graph_version}</span>
                 <span className="text-fg">{e.status === "done" && "pass_rate" in e.summary ? `${Math.round(((e.summary.pass_rate as number) ?? 0) * 100)}%` : `${e.completed}/${e.total}`}</span>
@@ -158,9 +158,9 @@ export function Evals() {
 
 function ScorerEditor({ spec, outputs, onChange, onRemove }: { spec: ScorerSpec; outputs: string[]; onChange: (p: Partial<ScorerSpec>) => void; onRemove: () => void }) {
   const meta = kinds.find((k) => k.kind === spec.kind)!;
-  const field = "w-full rounded border border-edge bg-canvas px-1.5 py-0.5 text-fg";
+  const field = "w-full rounded border border-edge bg-panel-2 px-1.5 py-0.5 text-fg";
   return (
-    <div className="rounded-md border border-edge bg-canvas/60 p-1.5" title={meta.hint}>
+    <div className="rounded-md border border-edge bg-panel-2/60 p-1.5" title={meta.hint}>
       <div className="flex items-center gap-1">
         <select value={spec.kind} onChange={(e) => onChange({ kind: e.target.value as ScorerKind, ...(e.target.value === "max_length" ? { max_chars: spec.max_chars ?? 280 } : {}) })} className={field}>
           {kinds.map((k) => (
@@ -221,7 +221,7 @@ function DatasetEditor({ graphId, dataset, inputs, onDone }: { graphId: string; 
   return (
     <div className="flex h-full flex-col gap-2 px-3 py-2 text-[11px]">
       <div className="flex items-center gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-edge bg-canvas px-2 py-1 text-fg" />
+        <input value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-edge bg-panel-2 px-2 py-1 text-fg" />
         <span className="text-muted">
           rows are <span className="font-mono">{"{ input: {"}{inputs.map((k) => `${k}`).join(", ") || "…"}{"}, expected, human }"}</span>; <span className="font-mono">human</span> answers human nodes so the eval runs unattended
         </span>
@@ -229,7 +229,7 @@ function DatasetEditor({ graphId, dataset, inputs, onDone }: { graphId: string; 
         <button onClick={() => onDone(null)} className="rounded px-2 py-1 text-muted hover:text-fg">Cancel</button>
       </div>
       {error && <p className="text-rose-300">{error}</p>}
-      <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} className="min-h-0 flex-1 rounded-md border border-edge bg-canvas p-2 font-mono text-[11px] text-fg outline-none focus:border-sky-500/60" />
+      <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} className="min-h-0 flex-1 rounded-md border border-edge bg-panel-2 p-2 font-mono text-[11px] text-fg outline-none focus:border-accent/55" />
     </div>
   );
 }
@@ -268,7 +268,7 @@ function Results({ ev, onCancel }: { ev: EvalRunInfo & { results: EvalResultRow[
           </>
         )}
         {ev.status === "running" && (
-          <button onClick={onCancel} className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-rose-300 hover:bg-white/5">
+          <button onClick={onCancel} className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-rose-300 hover:bg-panel-3">
             <Square size={11} /> stop
           </button>
         )}
@@ -342,12 +342,12 @@ function SweepLauncher({ graphId, dsId, scorers, disabled, onStarted }: { graphI
 
   if (!llmNodes.length) return null;
   return (
-    <div className="rounded-md border border-edge bg-canvas/60 p-2">
+    <div className="rounded-md border border-edge bg-panel-2/60 p-2">
       <div className="mb-1 flex items-center gap-1 text-muted">
         <Zap size={11} className="text-amber-300" /> Model sweep
         <span className="ml-auto text-[10px] text-muted/70">same eval, one run per model</span>
       </div>
-      <select value={nodeId} onChange={(e) => setNodeId(e.target.value)} className="mb-1 w-full rounded border border-edge bg-canvas px-1.5 py-0.5 text-fg">
+      <select value={nodeId} onChange={(e) => setNodeId(e.target.value)} className="mb-1 w-full rounded border border-edge bg-panel-2 px-1.5 py-0.5 text-fg">
         {llmNodes.map((n) => (
           <option key={n.id} value={n.id}>
             {n.data.label}
@@ -358,7 +358,7 @@ function SweepLauncher({ graphId, dsId, scorers, disabled, onStarted }: { graphI
         {models.map((m) => {
           const on = chosen.includes(m.id);
           return (
-            <button key={m.id} onClick={() => setPicked(on ? chosen.filter((x) => x !== m.id) : [...chosen, m.id])} className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${on ? "bg-amber-500/20 text-amber-200" : "bg-white/5 text-muted hover:text-fg"}`} title={`${m.tier} · $${m.input_per_m}/$${m.output_per_m} per 1M`}>
+            <button key={m.id} onClick={() => setPicked(on ? chosen.filter((x) => x !== m.id) : [...chosen, m.id])} className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${on ? "bg-amber-500/20 text-amber-200" : "bg-panel-3 text-muted hover:text-fg"}`} title={`${m.tier} · $${m.input_per_m}/$${m.output_per_m} per 1M`}>
               {m.id.replace(/^groq\//, "")}
             </button>
           );

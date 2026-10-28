@@ -1,12 +1,13 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, Flag, GitFork, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { GraphSummary, NodeType, RunInfo, TemplateInfo } from "@/lib/types";
 import { API_URL } from "@/lib/api";
+import { Logo } from "@/components/layout/Logo";
 
 const starter = {
   name: "Untitled graph",
@@ -27,12 +28,15 @@ const typeMeta: Record<NodeType, { icon: LucideIcon; cls: string; label: string 
   code: { icon: Code2, cls: "text-teal-300 bg-teal-400/10", label: "code" },
 };
 
-const templateArt: Record<string, string> = {
-  "tweet-review": "from-pink-500/30 via-sky-500/10 to-transparent",
-  "research-critic": "from-amber-500/30 via-violet-500/10 to-transparent",
-  "support-triage": "from-violet-500/30 via-pink-500/10 to-transparent",
-  "pr-review": "from-sky-500/30 via-teal-500/10 to-transparent",
+const templateIcon: Record<string, LucideIcon> = {
+  "tweet-review": UserRound,
+  "research-critic": BookOpen,
+  "support-triage": GitFork,
+  "pr-review": Code2,
 };
+
+type View = "overview" | "graphs" | "templates" | "runs" | "guide";
+type Health = { groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null;
 
 function TypeChips({ types, max = 7 }: { types: NodeType[]; max?: number }) {
   return (
@@ -53,7 +57,6 @@ export default function GraphsPage() {
   const [graphs, setGraphs] = useState<GraphSummary[] | null>(null);
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
-  type View = "overview" | "graphs" | "templates" | "runs" | "guide";
   const [view, setViewState] = useState<View>("overview");
   const setView = (v: View) => {
     setViewState(v);
@@ -65,7 +68,7 @@ export default function GraphsPage() {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [onlyReady, setOnlyReady] = useState(false);
   const [runs, setRuns] = useState<RunInfo[]>([]);
-  const [health, setHealth] = useState<{ groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null>(null);
+  const [health, setHealth] = useState<Health>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -124,258 +127,277 @@ export default function GraphsPage() {
 
   return (
     <main className="relative min-h-full overflow-x-hidden">
-      {/* ambient glow */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(60%_50%_at_50%_0%,rgb(56_189_248/0.18),transparent_70%)]" />
-      <div aria-hidden className="pointer-events-none absolute -left-40 top-40 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -right-40 top-80 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+      <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
+      <AppBar view={view} setView={setView} health={health} onImport={() => fileRef.current?.click()} onNew={create} />
 
-      <div className="relative grid w-full grid-cols-1 gap-5 px-4 pt-5 pb-10 md:px-6 lg:grid-cols-[12rem_minmax(0,1fr)_20rem] 2xl:grid-cols-[13rem_minmax(0,1fr)_22rem]">
-        <SideNav view={view} setView={setView} />
-        <div className={view === "overview" ? "min-w-0" : "min-w-0 lg:col-span-2"}>
-        {/* hero */}
+      <div className="relative mx-auto w-full max-w-[1680px] px-4 pt-5 pb-12 md:px-6">
         {view === "overview" && (
-        <header id="how" className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-edge bg-panel/60 px-3 py-1 text-[11px] font-medium tracking-wide text-muted backdrop-blur">
-              <Sparkles size={12} className="text-sky-300" /> Chrome DevTools for AI agents
-            </div>
-            <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-sky-400/30 to-violet-500/30 text-sky-200 ring-1 ring-white/10">
-                <Workflow size={22} />
-              </span>
-              <span className="bg-gradient-to-r from-white via-white to-sky-200 bg-clip-text text-transparent">Agent Studio</span>
-            </h1>
-            <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">
-              Build multi-agent workflows on a canvas, watch them run, then <span className="text-fg">rewind any run, edit its state and fork from that step</span>. Evals, model sweeps and MCP tools built in.
-            </p>
-            <div className="mt-4 flex items-center gap-4 text-xs text-muted">
-              <span><b className="text-fg">{graphs?.length ?? "–"}</b> graphs</span>
-              <span className="h-3 w-px bg-edge" />
-              <span><b className="text-emerald-300">{graphs ? healthy : "–"}</b> ready to run</span>
-              <span className="h-3 w-px bg-edge" />
-              <span><b className="text-fg">{templates.length}</b> templates</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
-            <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 rounded-lg border border-edge bg-panel/60 px-3.5 py-2.5 text-sm text-muted backdrop-blur transition hover:border-white/20 hover:text-fg" title="Import a graph JSON exported from the editor">
-              <Upload size={15} /> Import
-            </button>
-            <button onClick={create} className="group flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:shadow-sky-500/40">
-              <Plus size={15} /> New graph
-            </button>
-          </div>
-        </header>
-        )}
-
-        {error && <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
-
-        {/* templates */}
-        {view === "overview" && <Dashboard runs={runs} graphs={graphs ?? []} />}
-        {templates.length > 0 && view === "templates" && (
-          <section id="templates" className="mb-14 scroll-mt-8">
-            <div className="mb-4 flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold tracking-tight">Start from a template</h2>
-              <span className="text-xs text-muted">one click, runs on free tiers</span>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-              {templates.map((t) => (
-                <button key={t.id} onClick={() => fromTemplate(t.id)} className="group relative overflow-hidden rounded-2xl border border-edge bg-panel p-5 text-left transition hover:-translate-y-0.5 hover:border-sky-400/40 hover:shadow-2xl hover:shadow-sky-500/10">
-                  <div aria-hidden className={`pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-gradient-to-br ${templateArt[t.id] ?? "from-sky-500/30 to-transparent"} blur-2xl transition group-hover:scale-125`} />
-                  <div className="relative">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-[15px] font-semibold tracking-tight">{t.name}</div>
-                      <span className="shrink-0 rounded-full border border-edge px-2 py-0.5 text-[10px] text-muted">{t.nodes} nodes</span>
+          <section className="card relative mb-5 overflow-hidden">
+            <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(70%_120%_at_20%_0%,black,transparent)]" />
+            <div aria-hidden className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
+            <div className="relative flex flex-col gap-5 p-5 md:p-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
+                  <Zap size={11} /> Time-travel debugging for agent workflows
+                </div>
+                <h1 className="text-3xl font-semibold tracking-[-0.02em] md:text-[34px]">
+                  Build, run, <span className="text-accent">rewind.</span>
+                </h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">
+                  Compose multi-agent workflows on a canvas, watch them run live, then scrub back to any checkpoint, edit the state and fork from that step. Evals, model sweeps and MCP tools are built in.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="card-2 flex items-center divide-x divide-edge-2 text-xs">
+                  {[
+                    ["graphs", graphs?.length ?? "–", ""],
+                    ["ready", graphs ? healthy : "–", "text-emerald-300"],
+                    ["templates", templates.length, ""],
+                  ].map(([label, value, cls]) => (
+                    <div key={String(label)} className="px-3.5 py-2">
+                      <div className={`text-base font-semibold tabular-nums leading-none ${cls}`}>{value}</div>
+                      <div className="mt-1 text-[10.5px] text-dim">{label}</div>
                     </div>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{t.description}</p>
-                    <div className="mt-4 flex items-end justify-between gap-3">
-                      <TypeChips types={t.node_types} />
-                      <span className="flex items-center gap-1 text-xs font-medium text-sky-300 opacity-0 transition group-hover:opacity-100">
-                        Use template <ArrowRight size={13} />
-                      </span>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+                <button onClick={() => setView("templates")} className="btn btn-ghost">
+                  <Sparkles size={14} className="text-accent" /> Browse templates
                 </button>
-              ))}
+              </div>
             </div>
           </section>
         )}
 
-        {/* graphs */}
+        {error && <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
+
+        {view === "overview" && (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
+            <Dashboard runs={runs} graphs={graphs ?? []} />
+            <RightRail runs={runs.slice(0, 8)} graphs={graphs ?? []} health={health} />
+          </div>
+        )}
+
+        {templates.length > 0 && view === "templates" && (
+          <section id="templates">
+            <SectionHead title="Start from a template" hint="one click, runs on free tiers" />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {templates.map((t) => {
+                const Icon = templateIcon[t.id] ?? Workflow;
+                return (
+                  <button key={t.id} onClick={() => fromTemplate(t.id)} className="card group relative flex flex-col p-5 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_12px_40px_-12px_rgb(197_241_53/0.25)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent group-hover:text-accent-ink">
+                        <Icon size={18} />
+                      </span>
+                      <span className="pill border border-edge-2 text-muted">{t.nodes} nodes</span>
+                    </div>
+                    <div className="mt-4 text-[15px] font-semibold tracking-tight">{t.name}</div>
+                    <p className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed text-muted">{t.description}</p>
+                    <div className="mt-4 flex items-end justify-between gap-3 border-t border-edge pt-3">
+                      <TypeChips types={t.node_types} />
+                      <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-dim transition group-hover:text-accent">
+                        Use <ArrowRight size={13} />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {view === "runs" && <RunsTable runs={runs} graphs={graphs ?? []} />}
         {view === "guide" && <Guide />}
         {view === "graphs" && (
-        <section id="graphs" className="scroll-mt-8">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-semibold tracking-tight">Your graphs</h2>
-            <label className="flex items-center gap-2 rounded-lg border border-edge bg-panel/60 px-3 py-1.5 text-xs text-muted focus-within:border-sky-500/50">
-              <Search size={13} />
-              <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search graphs" className="w-44 bg-transparent text-fg outline-none placeholder:text-muted/60" />
-            </label>
-          </div>
-
-          {graphs && graphs.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-edge p-10 text-center text-sm text-muted">
-              No graphs yet. Pick a template above or create a blank one.
-            </div>
-          )}
-          {graphs && graphs.length > 0 && shown.length === 0 && <p className="text-sm text-muted">Nothing matches “{q}”.</p>}
-
-          <div className="overflow-hidden rounded-2xl border border-edge bg-panel">
-            <table className="w-full text-sm">
-              <thead className="bg-white/[.02] text-[11px] uppercase tracking-wider text-muted">
-                <tr>
-                  <th className="w-9 px-3 py-2.5">
-                    <button onClick={() => setSel(sel.size === pageRows.length ? new Set() : new Set(pageRows.map((g) => g.id)))} className="text-muted hover:text-fg" title="Select page">
-                      {sel.size > 0 && sel.size === pageRows.length ? <CheckSquare size={14} /> : <SquareIcon size={14} />}
-                    </button>
-                  </th>
-                  {(
-                    [
-                      ["name", "Name", "text-left"],
-                      ["nodes", "Nodes", "text-right"],
-                      ["issues", "Status", "text-left"],
-                      ["updated", "Updated", "text-left"],
-                    ] as const
-                  ).map(([key, label, align]) => (
-                    <th key={key} className={`px-3 py-2.5 font-medium ${align} ${key === "name" ? "w-1/2" : ""}`}>
-                      <button onClick={() => setSort(key)} className={`inline-flex items-center gap-1 hover:text-fg ${sort === key ? "text-fg" : ""}`}>
-                        {label} <ArrowUpDown size={11} className={sort === key ? "opacity-100" : "opacity-30"} />
-                      </button>
-                    </th>
-                  ))}
-                  <th className="px-3 py-2.5 text-right font-medium">v</th>
-                  <th className="w-24 px-3 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((g) => (
-                  <tr key={g.id} className={`group border-t border-edge/70 transition hover:bg-white/[.03] ${sel.has(g.id) ? "bg-sky-500/5" : ""}`}>
-                    <td className="px-3 py-2">
-                      <button onClick={() => toggle(g.id)} className={sel.has(g.id) ? "text-sky-300" : "text-muted/60 hover:text-fg"}>
-                        {sel.has(g.id) ? <CheckSquare size={14} /> : <SquareIcon size={14} />}
-                      </button>
-                    </td>
-                    <td className="max-w-0 px-3 py-2">
-                      <Link href={`/graphs/${g.id}`} className="flex items-center gap-2">
-                        <span className="truncate font-medium text-fg group-hover:text-sky-200" title={g.name}>{g.name}</span>
-                        {g.shared && <Link2 size={12} className="shrink-0 text-sky-300" aria-label="shared with a link" />}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-muted">{g.nodes}</td>
-                    <td className="px-3 py-2">
-                      {g.issues > 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"><AlertTriangle size={10} /> {g.issues} issue{g.issues > 1 ? "s" : ""}</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> ready</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted">{new Date(g.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">v{g.version}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center justify-end gap-0.5 opacity-0 transition group-hover:opacity-100">
-                        <Link href={`/graphs/${g.id}`} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-sky-300" title="Open"><ArrowRight size={13} /></Link>
-                        <button onClick={() => duplicate(g.id)} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-fg" title="Duplicate"><Copy size={13} /></button>
-                        <button onClick={() => remove(g.id)} className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-rose-400" title="Delete"><Trash2 size={13} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex items-center gap-3 border-t border-edge px-3 py-2 text-xs text-muted">
-              {sel.size > 0 ? (
-                <>
-                  <span className="text-fg">{sel.size} selected</span>
-                  <button onClick={removeMany} className="flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-1 text-rose-300 hover:bg-rose-500/25"><Trash2 size={12} /> Delete selected</button>
-                  <button onClick={() => setSel(new Set())} className="hover:text-fg">clear</button>
-                </>
-              ) : (
-                <span>{shown.length} graph{shown.length === 1 ? "" : "s"}{graphs && shown.length !== graphs.length ? ` of ${graphs.length}` : ""}</span>
-              )}
-              <label className="ml-auto flex items-center gap-1.5"><input type="checkbox" checked={onlyReady} onChange={(e) => { setOnlyReady(e.target.checked); setPage(0); }} /> ready only</label>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronLeft size={14} /></button>
-                <span className="tabular-nums">{Math.min(page, pages - 1) + 1} / {pages}</span>
-                <button onClick={() => setPage((p) => Math.min(pages - 1, p + 1))} disabled={page >= pages - 1} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronRight size={14} /></button>
+          <section id="graphs">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-[15px] font-semibold tracking-tight">Your graphs</h2>
+                <p className="text-xs text-muted">{shown.length} graph{shown.length === 1 ? "" : "s"}{graphs && shown.length !== graphs.length ? ` of ${graphs.length}` : ""}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="input flex w-56 items-center gap-2 py-0 pr-2 text-xs text-muted">
+                  <Search size={13} className="shrink-0" />
+                  <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search graphs" className="h-[2.1rem] w-full bg-transparent text-fg outline-none placeholder:text-dim" />
+                </label>
+                <button onClick={() => { setOnlyReady((v) => !v); setPage(0); }} className={`btn btn-sm ${onlyReady ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "btn-ghost"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${onlyReady ? "bg-emerald-400" : "bg-dim"}`} /> ready only
+                </button>
+                <button onClick={create} className="btn btn-sm btn-primary"><Plus size={14} /> New</button>
               </div>
             </div>
-          </div>
-        </section>
+
+            {graphs && graphs.length === 0 && (
+              <div className="card border-dashed p-10 text-center text-sm text-muted">No graphs yet. Pick a template or create a blank one.</div>
+            )}
+            {graphs && graphs.length > 0 && shown.length === 0 && <p className="mb-3 text-sm text-muted">Nothing matches “{q}”.</p>}
+
+            <div className="card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-panel-2/60">
+                  <tr className="eyebrow">
+                    <th className="w-10 px-3 py-2.5">
+                      <button onClick={() => setSel(sel.size === pageRows.length ? new Set() : new Set(pageRows.map((g) => g.id)))} className="text-dim hover:text-fg" title="Select page">
+                        {sel.size > 0 && sel.size === pageRows.length ? <CheckSquare size={14} /> : <SquareIcon size={14} />}
+                      </button>
+                    </th>
+                    {(
+                      [
+                        ["name", "Name", "text-left"],
+                        ["nodes", "Nodes", "text-right"],
+                        ["issues", "Status", "text-left"],
+                        ["updated", "Updated", "text-left"],
+                      ] as const
+                    ).map(([key, label, align]) => (
+                      <th key={key} className={`px-3 py-2.5 ${align} ${key === "name" ? "w-1/2" : ""}`}>
+                        <button onClick={() => setSort(key)} className={`eyebrow inline-flex items-center gap-1 hover:text-fg ${sort === key ? "text-fg" : ""}`}>
+                          {label} <ArrowUpDown size={11} className={sort === key ? "opacity-100" : "opacity-30"} />
+                        </button>
+                      </th>
+                    ))}
+                    <th className="px-3 py-2.5 text-right">v</th>
+                    <th className="w-24 px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((g) => (
+                    <tr key={g.id} className={`group border-t border-edge transition hover:bg-panel-2/70 ${sel.has(g.id) ? "bg-accent/5" : ""}`}>
+                      <td className="px-3 py-2.5">
+                        <button onClick={() => toggle(g.id)} className={sel.has(g.id) ? "text-accent" : "text-dim hover:text-fg"}>
+                          {sel.has(g.id) ? <CheckSquare size={14} /> : <SquareIcon size={14} />}
+                        </button>
+                      </td>
+                      <td className="max-w-0 px-3 py-2.5">
+                        <Link href={`/graphs/${g.id}`} className="flex items-center gap-2.5">
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-panel-3 text-muted ring-1 ring-edge-2 transition group-hover:bg-accent/15 group-hover:text-accent group-hover:ring-accent/30"><Workflow size={13} /></span>
+                          <span className="truncate font-medium text-fg" title={g.name}>{g.name}</span>
+                          {g.shared && <Link2 size={12} className="shrink-0 text-accent" aria-label="shared with a link" />}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted">{g.nodes}</td>
+                      <td className="px-3 py-2.5">
+                        {g.issues > 0 ? (
+                          <span className="pill bg-amber-400/10 text-amber-300"><AlertTriangle size={10} /> {g.issues} issue{g.issues > 1 ? "s" : ""}</span>
+                        ) : (
+                          <span className="pill bg-emerald-400/10 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> ready</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted">{new Date(g.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[11px] text-dim">v{g.version}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-0.5 opacity-0 transition group-hover:opacity-100">
+                          <Link href={`/graphs/${g.id}`} className="icon-btn" title="Open"><ArrowRight size={13} /></Link>
+                          <button onClick={() => duplicate(g.id)} className="icon-btn" title="Duplicate"><Copy size={13} /></button>
+                          <button onClick={() => remove(g.id)} className="icon-btn hover:!text-rose-400" title="Delete"><Trash2 size={13} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex items-center gap-3 border-t border-edge bg-panel-2/40 px-3 py-2 text-xs text-muted">
+                {sel.size > 0 ? (
+                  <>
+                    <span className="text-fg">{sel.size} selected</span>
+                    <button onClick={removeMany} className="btn btn-sm btn-danger"><Trash2 size={12} /> Delete selected</button>
+                    <button onClick={() => setSel(new Set())} className="hover:text-fg">clear</button>
+                  </>
+                ) : (
+                  <span>page {Math.min(page, pages - 1) + 1} of {pages}</span>
+                )}
+                <div className="ml-auto flex items-center gap-1">
+                  <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="icon-btn"><ChevronLeft size={14} /></button>
+                  <span className="tabular-nums">{Math.min(page, pages - 1) + 1} / {pages}</span>
+                  <button onClick={() => setPage((p) => Math.min(pages - 1, p + 1))} disabled={page >= pages - 1} className="icon-btn"><ChevronRight size={14} /></button>
+                </div>
+              </div>
+            </div>
+          </section>
         )}
-        </div>
-        {view === "overview" && <RightRail runs={runs.slice(0, 8)} graphs={graphs ?? []} health={health} />}
       </div>
     </main>
   );
 }
 
-function SideNav({ view, setView }: { view: string; setView: (v: "overview" | "graphs" | "templates" | "runs" | "guide") => void }) {
-  const items: [LucideIcon, string, "overview" | "graphs" | "templates" | "runs" | "guide"][] = [
-    [Workflow, "Overview", "overview"],
-    [LayoutGrid, "Graphs", "graphs"],
+function SectionHead({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between">
+      <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+      {hint && <span className="text-xs text-muted">{hint}</span>}
+    </div>
+  );
+}
+
+function AppBar({ view, setView, health, onImport, onNew }: { view: View; setView: (v: View) => void; health: Health; onImport: () => void; onNew: () => void }) {
+  const items: [LucideIcon, string, View][] = [
+    [LayoutGrid, "Overview", "overview"],
+    [Workflow, "Graphs", "graphs"],
     [Sparkles, "Templates", "templates"],
     [Activity, "Runs", "runs"],
     [BookOpen, "How it works", "guide"],
   ];
+  const online = !!health?.groq;
   return (
-    <aside className="hidden lg:block">
-      <div className="sticky top-8 space-y-6">
-        <div className="flex items-center gap-2 px-2 text-sm font-semibold">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-sky-400/30 to-violet-500/30 text-sky-200 ring-1 ring-white/10">
-            <Workflow size={15} />
-          </span>
-          Agent Studio
-        </div>
-        <nav className="space-y-0.5">
+    <header className="glass sticky top-0 z-30 border-b border-edge">
+      <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center gap-3 px-4 md:px-6">
+        <button onClick={() => setView("overview")} className="flex items-center gap-2.5 pr-2">
+          <Logo />
+          <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
+        </button>
+        <nav className="ml-2 hidden h-full items-stretch md:flex">
           {items.map(([Icon, label, key]) => (
-            <button key={key} onClick={() => setView(key)} className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${view === key ? "bg-sky-500/10 text-sky-200 ring-1 ring-sky-500/20" : "text-muted hover:bg-white/5 hover:text-fg"}`}>
-              <Icon size={15} /> {label}
+            <button key={key} data-active={view === key} onClick={() => setView(key)} className={`tab-underline flex items-center gap-1.5 px-3 text-[13px] font-medium transition ${view === key ? "text-fg" : "text-muted hover:text-fg"}`}>
+              <Icon size={14} className={view === key ? "text-accent" : ""} /> {label}
             </button>
           ))}
         </nav>
-        <div className="rounded-xl border border-edge bg-panel/60 p-3 text-[11px] leading-relaxed text-muted">
-          <div className="mb-1.5 flex items-center gap-1.5 font-medium text-fg"><Keyboard size={12} /> Shortcuts</div>
-          <div><kbd className="rounded border border-edge px-1 font-mono">⌘K</kbd> commands</div>
-          <div><kbd className="rounded border border-edge px-1 font-mono">⌘↵</kbd> run graph</div>
-          <div><kbd className="rounded border border-edge px-1 font-mono">⌘Z</kbd> undo · <kbd className="rounded border border-edge px-1 font-mono">⌫</kbd> delete</div>
+        <select value={view} onChange={(e) => setView(e.target.value as View)} className="input ml-1 w-auto py-1 text-xs md:hidden">
+          {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="pill hidden border border-edge-2 bg-panel-2 text-muted sm:inline-flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
+            <span className={`h-1.5 w-1.5 rounded-full ${health ? (online ? "bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" : "bg-amber-400") : "bg-dim"}`} />
+            {health ? (online ? "Models online" : "No model key") : "Checking"}
+          </span>
+          <button onClick={onImport} className="btn btn-ghost" title="Import a graph JSON exported from the editor"><Upload size={14} /> Import</button>
+          <button onClick={onNew} className="btn btn-primary"><Plus size={15} strokeWidth={2.5} /> New graph</button>
         </div>
       </div>
-    </aside>
+    </header>
   );
 }
 
 const runTone: Record<string, string> = { done: "bg-emerald-400", error: "bg-rose-400", paused: "bg-pink-400", running: "bg-sky-400", cancelled: "bg-amber-400", queued: "bg-zinc-500" };
 
-function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSummary[]; health: { groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null }) {
+function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSummary[]; health: Health }) {
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className="space-y-5 lg:sticky lg:top-8 lg:self-start">
-      <section id="runs" className="rounded-2xl border border-edge bg-panel p-4">
+    <aside className="space-y-4 lg:sticky lg:top-[4.5rem] lg:self-start">
+      <section id="runs" className="card p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Activity size={14} className="text-sky-300" /> Recent runs</h3>
-          <span className="text-[11px] text-muted">last {runs.length}</span>
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Activity size={14} className="text-accent" /> Recent runs</h3>
+          <span className="text-[11px] text-dim">last {runs.length}</span>
         </div>
         {!runs.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
-        <ul className="space-y-1.5">
+        <ul className="-mx-2 space-y-0.5">
           {runs.map((r) => (
             <li key={r.id}>
-              <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-white/5">
+              <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-panel-2">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} />
                 <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
                 <span className="shrink-0 text-muted">{r.status}</span>
-                <span className="shrink-0 text-muted/70">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)}s` : ""}</span>
+                <span className="w-10 shrink-0 text-right font-mono text-[10.5px] text-dim">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)}s` : ""}</span>
               </Link>
             </li>
           ))}
         </ul>
-        {runs.length > 0 && <div className="mt-3 border-t border-edge pt-2 text-[11px] text-muted">spent on these runs <b className="text-fg">${totalCost.toFixed(5)}</b></div>}
+        {runs.length > 0 && <div className="mt-3 flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>spent on these runs</span><b className="font-mono text-fg">${totalCost.toFixed(5)}</b></div>}
       </section>
 
-      <section className="rounded-2xl border border-edge bg-panel p-4">
-        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><Cpu size={14} className="text-violet-300" /> System</h3>
-        <ul className="space-y-1.5 text-xs">
+      <section className="card p-4">
+        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><Cpu size={14} className="text-accent" /> System</h3>
+        <ul className="space-y-2 text-xs">
           {[
             ["Groq models", health?.groq, health ? (health.groq ? "connected" : "no key") : "…"],
             ["Gemini", health?.gemini, health ? (health.gemini ? "connected" : "optional") : "…"],
@@ -384,23 +406,24 @@ function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSum
           ].map(([label, ok, text]) => (
             <li key={String(label)} className="flex items-center justify-between">
               <span className="text-muted">{label}</span>
-              <span className={`flex items-center gap-1 ${ok ? "text-emerald-300" : "text-muted"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-zinc-600"}`} /> {text}
+              <span className={`flex items-center gap-1.5 ${ok ? "text-emerald-300" : "text-dim"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-edge-2"}`} /> {text}
               </span>
             </li>
           ))}
         </ul>
         {health?.budget && (
-          <div className="mt-3 border-t border-edge pt-2">
-            <div className="mb-1 flex justify-between text-[11px] text-muted"><span>model calls today</span><span className="text-fg">{health.budget.used}{health.budget.limit ? ` / ${health.budget.limit}` : ""}</span></div>
-            {health.budget.limit && <div className="h-1.5 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-violet-400" style={{ width: `${Math.min(100, (health.budget.used / health.budget.limit) * 100)}%` }} /></div>}
+          <div className="mt-3 border-t border-edge pt-2.5">
+            <div className="mb-1.5 flex justify-between text-[11px] text-muted"><span>model calls today</span><span className="font-mono text-fg">{health.budget.used}{health.budget.limit ? ` / ${health.budget.limit}` : ""}</span></div>
+            {health.budget.limit && <div className="h-1.5 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(1, Math.min(100, (health.budget.used / health.budget.limit) * 100))}%` }} /></div>}
           </div>
         )}
       </section>
 
-      <section className="rounded-2xl border border-edge bg-gradient-to-br from-sky-500/10 via-panel to-violet-500/10 p-4 text-xs leading-relaxed text-muted">
-        <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-emerald-300" /> Free-tier friendly</h3>
-        Runs cost about <b className="text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
+      <section className="card relative overflow-hidden p-4 text-xs leading-relaxed text-muted">
+        <div aria-hidden className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl" />
+        <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-accent" /> Free-tier friendly</h3>
+        Runs cost about <b className="font-mono text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
       </section>
     </aside>
   );
@@ -415,53 +438,56 @@ function RunsTable({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
   const rows = all.slice(Math.min(pg, pages - 1) * 12, Math.min(pg, pages - 1) * 12 + 12);
   const cost = all.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <section className="scroll-mt-8">
+    <section>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-sm font-semibold tracking-tight">Runs across all graphs</h2>
-        <select value={filter} onChange={(e) => { setFilter(e.target.value); setPg(0); }} className="rounded-lg border border-edge bg-panel/60 px-2 py-1.5 text-xs text-fg">
-          <option value="">all statuses</option>
-          {["done", "paused", "running", "error", "cancelled"].map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div>
+          <h2 className="text-[15px] font-semibold tracking-tight">Runs across all graphs</h2>
+          <p className="text-xs text-muted">{all.length} runs · total cost <b className="font-mono text-fg">${cost.toFixed(5)}</b></p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-edge-2 bg-panel-2 p-0.5 text-xs">
+          {["", "done", "paused", "running", "error", "cancelled"].map((s) => (
+            <button key={s} onClick={() => { setFilter(s); setPg(0); }} className={`rounded-md px-2 py-1 capitalize transition ${filter === s ? "bg-panel-3 text-fg" : "text-muted hover:text-fg"}`}>{s || "all"}</button>
+          ))}
+        </div>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-edge bg-panel">
+      <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-white/[.02] text-[11px] uppercase tracking-wider text-muted">
-            <tr>
-              <th className="w-1/2 px-3 py-2.5 text-left font-medium">Graph</th>
-              <th className="px-3 py-2.5 text-left font-medium">Status</th>
-              <th className="px-3 py-2.5 text-right font-medium">Time</th>
-              <th className="px-3 py-2.5 text-right font-medium">Calls</th>
-              <th className="px-3 py-2.5 text-right font-medium">Cost</th>
-              <th className="px-3 py-2.5 text-left font-medium">Started</th>
+          <thead className="bg-panel-2/60">
+            <tr className="eyebrow">
+              <th className="w-1/2 px-3 py-2.5 text-left">Graph</th>
+              <th className="px-3 py-2.5 text-left">Status</th>
+              <th className="px-3 py-2.5 text-right">Time</th>
+              <th className="px-3 py-2.5 text-right">Calls</th>
+              <th className="px-3 py-2.5 text-right">Cost</th>
+              <th className="px-3 py-2.5 text-left">Started</th>
             </tr>
           </thead>
           <tbody>
-            {!rows.length && <tr><td colSpan={6} className="px-3 py-6 text-center text-xs text-muted">No runs yet. Open a graph and press Run.</td></tr>}
+            {!rows.length && <tr><td colSpan={6} className="px-3 py-8 text-center text-xs text-muted">No runs yet. Open a graph and press Run.</td></tr>}
             {rows.map((r) => (
-              <tr key={r.id} className="group border-t border-edge/70 transition hover:bg-white/[.03]">
-                <td className="max-w-0 px-3 py-2">
+              <tr key={r.id} className="group border-t border-edge transition hover:bg-panel-2/70">
+                <td className="max-w-0 px-3 py-2.5">
                   <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2">
-                    <span className="truncate font-medium text-fg group-hover:text-sky-200">{nameOf[r.graph_id] ?? "deleted graph"}</span>
-                    {r.parent_run_id && <span className="shrink-0 text-[10px] text-violet-300">fork</span>}
-                    <span className="shrink-0 font-mono text-[10px] text-muted/60">{r.id.slice(0, 8)}</span>
+                    <span className="truncate font-medium text-fg">{nameOf[r.graph_id] ?? "deleted graph"}</span>
+                    {r.parent_run_id && <span className="pill bg-violet-400/10 text-violet-300">fork</span>}
+                    <span className="shrink-0 font-mono text-[10px] text-dim">{r.id.slice(0, 8)}</span>
                   </Link>
                 </td>
-                <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5 text-xs text-muted"><span className={`h-2 w-2 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} /> {r.status}</span></td>
-                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)} s` : "–"}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">{r.usage?.llm_calls ?? 0}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">${(r.usage?.cost_usd ?? 0).toFixed(6)}</td>
-                <td className="px-3 py-2 whitespace-nowrap text-xs text-muted">{new Date(r.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
+                <td className="px-3 py-2.5"><span className="inline-flex items-center gap-1.5 text-xs text-muted"><span className={`h-2 w-2 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} /> {r.status}</span></td>
+                <td className="px-3 py-2.5 text-right font-mono text-[11px] text-muted">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)} s` : "–"}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-[11px] text-muted">{r.usage?.llm_calls ?? 0}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-[11px] text-muted">${(r.usage?.cost_usd ?? 0).toFixed(6)}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted">{new Date(r.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div className="flex items-center gap-4 border-t border-edge px-3 py-2 text-xs text-muted">
-          <span>{all.length} runs</span>
-          <span>total cost <b className="text-fg">${cost.toFixed(5)}</b></span>
+        <div className="flex items-center gap-4 border-t border-edge bg-panel-2/40 px-3 py-2 text-xs text-muted">
+          <span>page {Math.min(pg, pages - 1) + 1} of {pages}</span>
           <div className="ml-auto flex items-center gap-1">
-            <button onClick={() => setPg((p) => Math.max(0, p - 1))} disabled={pg === 0} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronLeft size={14} /></button>
+            <button onClick={() => setPg((p) => Math.max(0, p - 1))} disabled={pg === 0} className="icon-btn"><ChevronLeft size={14} /></button>
             <span className="tabular-nums">{Math.min(pg, pages - 1) + 1} / {pages}</span>
-            <button onClick={() => setPg((p) => Math.min(pages - 1, p + 1))} disabled={pg >= pages - 1} className="rounded p-1 hover:text-fg disabled:opacity-30"><ChevronRight size={14} /></button>
+            <button onClick={() => setPg((p) => Math.min(pages - 1, p + 1))} disabled={pg >= pages - 1} className="icon-btn"><ChevronRight size={14} /></button>
           </div>
         </div>
       </div>
@@ -477,28 +503,30 @@ function Guide() {
     [ShieldCheck, "Eval and ship", "Build a dataset, pick scorers, run an eval; failures light up the node that caused them. Sweep candidate models for a node and apply the cheapest one that still passes."],
   ];
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <div>
-        <h2 className="text-sm font-semibold tracking-tight">How it works</h2>
+        <h2 className="text-[15px] font-semibold tracking-tight">How it works</h2>
         <p className="mt-1 text-sm text-muted">Four loops, one canvas. Everything below runs on free tiers.</p>
       </div>
-      <ol className="grid gap-4 md:grid-cols-2">
+      <ol className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {steps.map(([Icon, title, body], i) => (
-          <li key={title} className="rounded-2xl border border-edge bg-panel p-5">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-sky-400/10 text-sky-300"><Icon size={14} /></span><span className="text-muted">{i + 1}.</span> {title}</div>
-            <p className="text-[13px] leading-relaxed text-muted">{body}</p>
+          <li key={title} className="card relative p-5">
+            <span className="absolute top-4 right-4 font-mono text-[11px] text-dim">0{i + 1}</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20"><Icon size={16} /></span>
+            <div className="mt-3 text-sm font-semibold">{title}</div>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{body}</p>
           </li>
         ))}
       </ol>
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-edge bg-panel p-5 text-[13px] text-muted">
-          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Keyboard size={14} /> Shortcuts</div>
+        <div className="card p-5 text-[13px] text-muted">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Keyboard size={14} className="text-accent" /> Shortcuts</div>
           {[["⌘K", "command palette"], ["⌘↵", "run the graph"], ["⌘Z / ⇧⌘Z", "undo / redo"], ["⌫", "delete selection"], ["drag from a handle", "connect nodes"]].map(([k, v]) => (
-            <div key={k} className="flex justify-between border-t border-edge/60 py-1.5 first:border-0"><span>{v}</span><kbd className="rounded border border-edge px-1.5 font-mono text-[11px] text-fg">{k}</kbd></div>
+            <div key={k} className="flex justify-between border-t border-edge py-2 first:border-0"><span>{v}</span><kbd className="kbd">{k}</kbd></div>
           ))}
         </div>
-        <div className="rounded-2xl border border-edge bg-panel p-5 text-[13px] leading-relaxed text-muted">
-          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Cpu size={14} /> Under the hood</div>
+        <div className="card p-5 text-[13px] leading-relaxed text-muted">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Cpu size={14} className="text-accent" /> Under the hood</div>
           Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted; forking creates a new checkpoint whose parent is the one you edited. Console, timeline, cost and traces all derive from the same event log.
         </div>
       </div>
@@ -508,9 +536,9 @@ function Guide() {
 
 const statusColors: Record<string, string> = { done: "#34d399", error: "#fb7185", paused: "#f472b6", running: "#38bdf8", cancelled: "#fbbf24", queued: "#71717a" };
 
-function Donut({ parts, size = 120 }: { parts: [string, number, string][]; size?: number }) {
+function Donut({ parts, size = 116 }: { parts: [string, number, string][]; size?: number }) {
   const total = parts.reduce((a, p) => a + p[1], 0) || 1;
-  const r = size / 2 - 10, c = 2 * Math.PI * r;
+  const r = size / 2 - 9, c = 2 * Math.PI * r;
   // precompute arc offsets: no mutation during render
   const arcs = parts.reduce<{ label: string; color: string; len: number; offset: number }[]>((acc, [label, v, color]) => {
     const offset = acc.reduce((a, x) => a + x.len, 0);
@@ -518,26 +546,35 @@ function Donut({ parts, size = 120 }: { parts: [string, number, string][]; size?
   }, []);
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(255 255 255 / 0.05)" strokeWidth={14} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--panel-3)" strokeWidth={12} />
       {arcs.map((a) => (
-        <circle key={a.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={a.color} strokeWidth={14} strokeDasharray={`${a.len} ${c - a.len}`} strokeDashoffset={-a.offset} />
+        <circle key={a.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={a.color} strokeWidth={12} strokeDasharray={`${Math.max(0, a.len - 2)} ${c - Math.max(0, a.len - 2)}`} strokeDashoffset={-a.offset} />
       ))}
     </svg>
   );
 }
 
-function Bars({ rows, color = "#38bdf8", fmt = (v: number) => String(v) }: { rows: [string, string, number][]; color?: string; fmt?: (v: number) => string }) {
+function Bars({ rows, color = "var(--accent)", fmt = (v: number) => String(v) }: { rows: [string, string, number][]; color?: string; fmt?: (v: number) => string }) {
   const max = Math.max(...rows.map((r) => r[2]), 1);
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {rows.map(([id, label, v]) => (
         <div key={id} className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-2 text-[11px]">
           <span className="truncate text-muted" title={label}>{label}</span>
-          <div className="h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full" style={{ width: `${(v / max) * 100}%`, background: color }} /></div>
-          <span className="text-right tabular-nums text-fg">{fmt(v)}</span>
+          <div className="h-2 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(v / max) * 100}%`, background: color }} /></div>
+          <span className="text-right font-mono tabular-nums text-fg">{fmt(v)}</span>
         </div>
       ))}
-      {!rows.length && <p className="text-[11px] text-muted">no data yet</p>}
+      {!rows.length && <p className="text-[11px] text-dim">no data yet</p>}
+    </div>
+  );
+}
+
+function CardHead({ icon: Icon, title, hint }: { icon?: LucideIcon; title: string; hint?: string }) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <div className="flex items-center gap-1.5 text-sm font-semibold">{Icon && <Icon size={14} className="text-accent" />} {title}</div>
+      {hint && <span className="text-[11px] text-dim">{hint}</span>}
     </div>
   );
 }
@@ -559,7 +596,7 @@ function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
   const topCost = Object.entries(costGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => [id, nameOf[id] ?? "deleted graph", v] as [string, string, number]);
   const byHour: Record<string, number> = {};
   for (const r of runs) { const h = new Date(r.created_at); const k = `${h.getDate()}/${h.getMonth() + 1} ${String(h.getHours()).padStart(2, "0")}h`; byHour[k] = (byHour[k] ?? 0) + 1; }
-  const hours = Object.entries(byHour).slice(0, 8).reverse() as [string, number][];
+  const hours = Object.entries(byHour).slice(0, 10).reverse() as [string, number][];
   const kpis: [LucideIcon, string, string, string][] = [
     [LayoutGrid, "Graphs", String(graphs.length), `${graphs.filter((g) => g.issues === 0).length} ready`],
     [Activity, "Runs", String(runs.length), `${byStatus.paused ?? 0} waiting on a human`],
@@ -567,48 +604,49 @@ function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
     [Coins, "Spend", `$${cost.toFixed(4)}`, `${calls} model calls · p50 ${p50 != null ? (p50 / 1000).toFixed(1) + " s" : "–"}`],
   ];
   return (
-    <section className="space-y-5">
-      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
+    <section className="min-w-0 space-y-4">
+      <div className="card grid grid-cols-2 divide-y divide-edge md:grid-cols-4 md:divide-x md:divide-y-0">
         {kpis.map(([Icon, label, value, sub]) => (
-          <div key={label} className="rounded-2xl border border-edge bg-panel p-4">
-            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted"><Icon size={12} /> {label}</div>
-            <div className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight">{value}</div>
-            <div className="mt-0.5 text-[11px] text-muted">{sub}</div>
+          <div key={label} className="p-4">
+            <div className="eyebrow flex items-center gap-1.5"><Icon size={12} className="text-accent" /> {label}</div>
+            <div className="mt-2 text-[26px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
+            <div className="mt-1.5 text-[11px] text-muted">{sub}</div>
           </div>
         ))}
       </div>
-      <div className="grid gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-edge bg-panel p-4">
-          <div className="mb-3 text-sm font-semibold">Run outcomes</div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="card p-4">
+          <CardHead title="Run outcomes" hint={`${runs.length} runs`} />
           <div className="flex items-center gap-4">
             <Donut parts={Object.entries(byStatus).map(([k, v]) => [k, v, statusColors[k] ?? "#71717a"])} />
-            <ul className="space-y-1 text-[11px]">
+            <ul className="space-y-1.5 text-[11px]">
               {Object.entries(byStatus).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
-                <li key={k} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="w-16 text-muted">{k}</span><span className="tabular-nums text-fg">{v}</span><span className="text-muted/60">{Math.round((v / (runs.length || 1)) * 100)}%</span></li>
+                <li key={k} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="w-16 text-muted">{k}</span><span className="font-mono tabular-nums text-fg">{v}</span><span className="font-mono text-dim">{Math.round((v / (runs.length || 1)) * 100)}%</span></li>
               ))}
-              {!runs.length && <li className="text-muted">no runs yet</li>}
+              {!runs.length && <li className="text-dim">no runs yet</li>}
             </ul>
           </div>
         </div>
-        <div className="rounded-2xl border border-edge bg-panel p-4">
-          <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><BarChart3 size={14} className="text-sky-300" /> Runs per graph</div>
+        <div className="card p-4">
+          <CardHead icon={BarChart3} title="Runs per graph" hint="top 5" />
           <Bars rows={topGraphs} />
         </div>
-        <div className="rounded-2xl border border-edge bg-panel p-4">
-          <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><Coins size={14} className="text-amber-300" /> Spend per graph</div>
+        <div className="card p-4">
+          <CardHead icon={Coins} title="Spend per graph" hint="USD" />
           <Bars rows={topCost} color="#fbbf24" fmt={(v) => `$${v.toFixed(5)}`} />
         </div>
       </div>
-      <div className="rounded-2xl border border-edge bg-panel p-4">
-        <div className="mb-3 text-sm font-semibold">Activity by hour</div>
-        <div className="flex h-24 items-end gap-2">
+      <div className="card p-4">
+        <CardHead title="Activity by hour" hint="runs started" />
+        <div className="flex h-28 items-end gap-2">
           {hours.map(([k, v]) => { const max = Math.max(...hours.map((h) => h[1]), 1); return (
-            <div key={k} className="flex flex-1 flex-col items-center gap-1" title={`${v} runs`}>
-              <div className="w-full rounded-t-md bg-gradient-to-t from-sky-500/40 to-violet-400/60" style={{ height: `${(v / max) * 72}px` }} />
-              <span className="text-[9px] text-muted">{k}</span>
+            <div key={k} className="group flex flex-1 flex-col items-center gap-1.5" title={`${v} runs`}>
+              <span className="font-mono text-[10px] text-dim opacity-0 transition group-hover:opacity-100">{v}</span>
+              <div className="w-full rounded-t-md bg-accent/70 transition group-hover:bg-accent" style={{ height: `${Math.max(4, (v / max) * 72)}px` }} />
+              <span className="font-mono text-[9.5px] text-dim">{k}</span>
             </div>
           ); })}
-          {!hours.length && <p className="text-[11px] text-muted">no runs yet</p>}
+          {!hours.length && <p className="text-[11px] text-dim">no runs yet</p>}
         </div>
       </div>
     </section>

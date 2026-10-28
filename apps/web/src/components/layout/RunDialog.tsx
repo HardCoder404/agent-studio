@@ -55,11 +55,14 @@ export function RunDialog({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50" onMouseDown={onClose}>
-      <div className="w-[28rem] rounded-xl border border-edge bg-panel p-4 shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium">Run input</h2>
-          <button onClick={onClose} className="rounded p-1 text-muted hover:text-fg">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm" onMouseDown={onClose}>
+      <div className="card w-[28rem] p-5 shadow-2xl shadow-black/60" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-[15px] font-semibold tracking-tight">Run input</h2>
+            <p className="text-xs text-muted">Values for the variables no node produces.</p>
+          </div>
+          <button onClick={onClose} className="icon-btn">
             <X size={14} />
           </button>
         </div>
@@ -70,29 +73,29 @@ export function RunDialog({ onClose }: Props) {
           <div className="space-y-2">
             {keys.map((k) => (
               <label key={k} className="block">
-                <span className="mb-1 block font-mono text-xs text-sky-300">{`{{${k}}}`}</span>
+                <span className="mb-1.5 block font-mono text-xs text-accent">{`{{${k}}}`}</span>
                 <input
                   autoFocus={k === keys[0]}
                   value={values[k] ?? ""}
                   onChange={(e) => setValues((v) => ({ ...v, [k]: e.target.value }))}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  className="w-full rounded-md border border-edge bg-canvas px-2.5 py-1.5 text-sm text-fg outline-none focus:border-sky-500/60"
+                  className="input"
                 />
               </label>
             ))}
           </div>
         ) : (
-          <textarea value={rawText} onChange={(e) => setRawText(e.target.value)} rows={6} className="w-full rounded-md border border-edge bg-canvas p-2 font-mono text-xs text-fg outline-none focus:border-sky-500/60" />
+          <textarea value={rawText} onChange={(e) => setRawText(e.target.value)} rows={6} className="input font-mono text-xs" />
         )}
 
         {error && <p className="mt-2 text-xs text-rose-300">{error}</p>}
 
-        <div className="mt-4 flex items-center justify-between">
-          <button onClick={() => setRaw((r) => !r)} className="text-xs text-muted hover:text-fg">
+        <div className="mt-5 flex items-center justify-between">
+          <button onClick={() => setRaw((r) => !r)} className="btn btn-sm btn-quiet">
             {raw ? "Form" : "JSON"}
           </button>
-          <button onClick={submit} disabled={busy} className="flex items-center gap-1.5 rounded-md bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-50">
-            <Play size={14} /> {busy ? "Starting…" : "Run"}
+          <button onClick={submit} disabled={busy} className="btn btn-primary">
+            <Play size={14} strokeWidth={2.5} /> {busy ? "Starting…" : "Run"}
           </button>
         </div>
       </div>

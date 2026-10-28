@@ -76,8 +76,8 @@ export function CommandPalette() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-[18vh]" onMouseDown={() => setOpen(false)}>
-      <div className="w-[34rem] overflow-hidden rounded-xl border border-edge bg-panel shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[18vh] backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
+      <div className="card w-[34rem] overflow-hidden shadow-2xl shadow-black/70" onMouseDown={(e) => e.stopPropagation()}>
         <input
           autoFocus
           value={q}
@@ -91,7 +91,7 @@ export function CommandPalette() {
             else if (e.key === "Enter" && filtered[cursor]) pick(filtered[cursor]);
           }}
           placeholder="Type a command…"
-          className="w-full border-b border-edge bg-transparent px-4 py-3 text-sm text-fg outline-none placeholder:text-muted"
+          className="w-full border-b border-edge bg-transparent px-4 py-3.5 text-[14px] text-fg outline-none placeholder:text-dim"
         />
         <ul className="max-h-80 overflow-y-auto py-1">
           {filtered.length === 0 && <li className="px-4 py-3 text-sm text-muted">No matches.</li>}
@@ -100,18 +100,18 @@ export function CommandPalette() {
               key={c.id}
               onMouseEnter={() => setCursor(i)}
               onClick={() => pick(c)}
-              className={`flex cursor-pointer items-center gap-3 px-4 py-2 text-sm ${i === cursor ? "bg-white/5" : ""} ${c.disabled ? "opacity-40" : ""}`}
+              className={`mx-1.5 flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-sm ${i === cursor ? "bg-panel-3" : ""} ${c.disabled ? "opacity-40" : ""}`}
             >
-              <c.icon size={15} className="text-muted" />
+              <c.icon size={15} className={i === cursor ? "text-accent" : "text-muted"} />
               <span className="flex-1">
                 {c.title}
                 {c.hint && <span className="ml-2 text-xs text-muted">{c.hint}</span>}
               </span>
-              {c.keys && <kbd className="rounded border border-edge px-1.5 py-0.5 font-mono text-[10px] text-muted">{c.keys}</kbd>}
+              {c.keys && <kbd className="kbd">{c.keys}</kbd>}
             </li>
           ))}
         </ul>
-        <div className="border-t border-edge px-4 py-1.5 text-[10px] text-muted">↑↓ navigate · ↵ run · esc close</div>
+        <div className="flex gap-3 border-t border-edge bg-panel-2/50 px-4 py-2 text-[10.5px] text-dim"><span><kbd className="kbd">↑↓</kbd> navigate</span><span><kbd className="kbd">↵</kbd> run</span><span><kbd className="kbd">esc</kbd> close</span></div>
       </div>
     </div>
   );

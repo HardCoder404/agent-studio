@@ -48,7 +48,7 @@ export function Tools() {
         </div>
         <ul className="mb-3 space-y-1">
           {builtin.map((t) => (
-            <li key={t.name} className="rounded-md border border-edge bg-canvas px-2 py-1">
+            <li key={t.name} className="rounded-md border border-edge bg-panel-2 px-2 py-1">
               <span className="font-mono text-fg">{t.name}</span>
               <span className="ml-2 text-muted">{t.description}</span>
             </li>
@@ -58,14 +58,14 @@ export function Tools() {
           <span className="flex items-center gap-1">
             <Plug size={11} /> MCP servers
           </span>
-          <button onClick={() => setAdding(true)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sky-300 hover:bg-white/5">
+          <button onClick={() => setAdding(true)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-accent hover:bg-panel-3">
             <Plus size={11} /> connect
           </button>
         </div>
         <ul className="space-y-1.5">
           {!servers.length && <li className="text-muted">No servers yet. Connect one to pull its tools into the palette.</li>}
           {servers.map((s) => (
-            <li key={s.id} className="rounded-md border border-edge bg-canvas p-2">
+            <li key={s.id} className="rounded-md border border-edge bg-panel-2 p-2">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-fg">{s.name}</span>
                 <span className={statusColor[s.status] ?? "text-muted"}>{s.status}</span>
@@ -112,7 +112,7 @@ function McpToolList({ servers }: { servers: MCPServerInfo[] }) {
         {all.map((t) => (
           <tr key={`${t.server}:${t.name}`} className="border-t border-edge/60 align-top">
             <td className="py-1 pr-3 font-mono text-fg">mcp:{t.server}:{t.name}</td>
-            <td className="py-1 pr-3 font-mono text-sky-300">{Object.keys((t.input_schema?.properties as Record<string, unknown>) ?? {}).join(", ") || "–"}</td>
+            <td className="py-1 pr-3 font-mono text-accent">{Object.keys((t.input_schema?.properties as Record<string, unknown>) ?? {}).join(", ") || "–"}</td>
             <td className="py-1 text-muted">{t.description}</td>
           </tr>
         ))}
@@ -128,7 +128,7 @@ function AddServer({ onDone, onCancel }: { onDone: () => void; onCancel: () => v
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const field = "w-full rounded border border-edge bg-canvas px-2 py-1 text-fg outline-none focus:border-sky-500/60";
+  const field = "w-full rounded border border-edge bg-panel-2 px-2 py-1 text-fg outline-none focus:border-accent/55";
 
   const submit = async () => {
     setBusy(true);
@@ -152,9 +152,9 @@ function AddServer({ onDone, onCancel }: { onDone: () => void; onCancel: () => v
         <span className="mb-0.5 block text-muted">name (used in tool ids)</span>
         <input value={name} onChange={(e) => setName(e.target.value.replace(/[^\w-]/g, ""))} placeholder="fs" className={`${field} font-mono`} />
       </label>
-      <div className="grid grid-cols-2 gap-1 rounded-md border border-edge bg-canvas p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-md border border-edge bg-panel-2 p-1">
         {(["stdio", "http"] as const).map((t) => (
-          <button key={t} onClick={() => setTransport(t)} className={`rounded px-2 py-1 ${transport === t ? "bg-sky-500/20 text-sky-200" : "text-muted hover:text-fg"}`}>
+          <button key={t} onClick={() => setTransport(t)} className={`rounded px-2 py-1 ${transport === t ? "bg-accent/15 text-accent" : "text-muted hover:text-fg"}`}>
             {t === "stdio" ? "stdio (command)" : "http (url)"}
           </button>
         ))}

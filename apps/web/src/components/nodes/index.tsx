@@ -25,7 +25,7 @@ function LLMNode({ id, data, selected }: StudioNodeProps) {
   return (
     <NodeShell id={id} selected={selected} icon={Bot} tone="sky" title={data.label} subtitle={c.model?.split("/").slice(1).join("/")}>
       <div className="font-mono">{short(c.prompt) || <span className="italic">empty prompt</span>}</div>
-      <div className="mt-1 flex items-center gap-1 text-[10px]">
+      <div className="mt-1.5 flex items-center gap-1 font-mono text-[10px] text-dim">
         <Braces size={10} /> {c.output_key}
       </div>
     </NodeShell>
@@ -36,7 +36,7 @@ function ToolNode({ id, data, selected }: StudioNodeProps) {
   const c = data.config as { tool?: string; output_key?: string };
   return (
     <NodeShell id={id} selected={selected} icon={Wrench} tone="amber" title={data.label} subtitle={c.tool}>
-      <div className="flex items-center gap-1 text-[10px]">
+      <div className="flex items-center gap-1 font-mono text-[10px] text-dim">
         <Braces size={10} /> {c.output_key}
       </div>
     </NodeShell>
@@ -75,7 +75,7 @@ function RouterNode({ id, data, selected }: StudioNodeProps) {
       <NodeShell id={id} selected={selected} icon={GitFork} tone="violet" title={data.label} subtitle={c.mode === "llm" ? "asks a model" : "rule"} output={false}>
         <div className="flex flex-wrap gap-1">
           {branches.map((b) => (
-            <span key={b.label} className="rounded bg-violet-400/10 px-1.5 py-0.5 font-mono text-[10px] text-violet-300">
+            <span key={b.label} className="rounded-md border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 font-mono text-[10px] text-violet-300">
               {b.label}
             </span>
           ))}
@@ -88,7 +88,7 @@ function RouterNode({ id, data, selected }: StudioNodeProps) {
           type="source"
           position={Position.Bottom}
           style={{ left: `${((i + 1) / (branches.length + 1)) * 100}%` }}
-          className="!h-2.5 !w-2.5 !border-2 !border-canvas !bg-violet-400"
+          className="!h-3 !w-3 !rounded-full !border-2 !border-violet-400 !bg-panel"
           title={b.label}
         />
       ))}

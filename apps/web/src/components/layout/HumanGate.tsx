@@ -36,16 +36,20 @@ function Gate({ runId, interrupt }: { runId: string; interrupt: InterruptPayload
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
-      <div className="pointer-events-auto w-[30rem] rounded-xl border border-pink-500/40 bg-panel p-4 shadow-2xl shadow-black/50">
-        <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-pink-300">
-          <UserRound size={13} /> {label ?? interrupt.node} is waiting for you
+      <div className="card pointer-events-auto w-[32rem] border-pink-400/40 p-4 shadow-2xl shadow-black/60 ring-1 ring-pink-400/15">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-pink-400/12 text-pink-300"><UserRound size={14} /></span>
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold tracking-tight">{label ?? interrupt.node} is waiting for you</div>
+            <div className="text-[10.5px] text-dim">run paused at a human gate</div>
+          </div>
         </div>
         <p className="text-sm text-fg">{interrupt.question}</p>
         {Object.keys(interrupt.show).length > 0 && (
-          <dl className="mt-2 max-h-40 space-y-1.5 overflow-y-auto rounded-md border border-edge bg-canvas p-2">
+          <dl className="card-2 mt-2.5 max-h-40 space-y-1.5 overflow-y-auto p-2.5">
             {Object.entries(interrupt.show).map(([k, v]) => (
               <div key={k}>
-                <dt className="font-mono text-[10px] text-sky-300">{k}</dt>
+                <dt className="font-mono text-[10px] text-accent">{k}</dt>
                 <dd className="whitespace-pre-wrap text-xs text-fg">{typeof v === "string" ? v : JSON.stringify(v, null, 2)}</dd>
               </div>
             ))}
@@ -53,7 +57,7 @@ function Gate({ runId, interrupt }: { runId: string; interrupt: InterruptPayload
         )}
         <div className="mt-3 flex items-center gap-2">
           {quick.map((q) => (
-            <button key={q} onClick={() => send(q)} disabled={busy} className="rounded-md border border-edge px-3 py-1.5 text-sm text-fg hover:bg-white/5 disabled:opacity-50">
+            <button key={q} onClick={() => send(q)} disabled={busy} className="btn btn-sm btn-ghost capitalize">
               {q}
             </button>
           ))}
@@ -62,9 +66,9 @@ function Gate({ runId, interrupt }: { runId: string; interrupt: InterruptPayload
             onChange={(e) => setAnswer(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && answer.trim() && send(answer.trim())}
             placeholder={quick.length ? "or type an answer…" : "Type an answer…"}
-            className="min-w-0 flex-1 rounded-md border border-edge bg-canvas px-2.5 py-1.5 text-sm text-fg outline-none focus:border-pink-500/60"
+            className="input min-w-0 flex-1 py-1"
           />
-          <button onClick={() => answer.trim() && send(answer.trim())} disabled={busy || !answer.trim()} className="rounded-md bg-pink-500/20 px-3 py-1.5 text-sm text-pink-200 hover:bg-pink-500/30 disabled:opacity-50">
+          <button onClick={() => answer.trim() && send(answer.trim())} disabled={busy || !answer.trim()} className="btn btn-sm border border-pink-400/30 bg-pink-400/15 text-pink-100 hover:bg-pink-400/25">
             Send
           </button>
         </div>

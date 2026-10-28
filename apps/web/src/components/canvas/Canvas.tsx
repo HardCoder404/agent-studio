@@ -33,7 +33,7 @@ export function Canvas() {
       edges.map((e) => {
         const active = (nodeStatus[e.target] === "running" || nodeStatus[e.target] === "paused") && nodeStatus[e.source] === "done";
         const walked = nodeStatus[e.target] === "done" && nodeStatus[e.source] === "done";
-        return { ...e, animated: active, style: { strokeWidth: active ? 2.5 : 1.5, stroke: active ? "#7dd3fc" : walked ? "#34d399" : undefined } };
+        return { ...e, animated: active, style: { strokeWidth: active ? 2.5 : 1.5, stroke: active ? "#38bdf8" : walked ? "#34d399" : undefined } };
       }),
     [edges, nodeStatus],
   );
@@ -93,9 +93,9 @@ export function Canvas() {
       defaultEdgeOptions={{ type: "smoothstep", style: { strokeWidth: 1.5 } }}
       className="bg-canvas"
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--grid)" />
+      <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="var(--grid)" />
       <Controls position="bottom-left" showInteractive={false} className="!m-3" />
-      <MiniMap position="bottom-right" pannable zoomable className="!m-3 !bg-panel" maskColor="rgb(0 0 0 / .5)" nodeColor="#52525b" />
+      <MiniMap position="bottom-right" pannable zoomable className="!m-3 !bg-panel" maskColor="rgb(0 0 0 / .6)" nodeColor="#3a3a44" nodeStrokeColor="#52525b" nodeBorderRadius={6} />
     </ReactFlow>
   );
 }
