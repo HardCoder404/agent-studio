@@ -827,122 +827,107 @@ function TemplatesView({ templates, fromTemplate, onImport, onNew }: { templates
     };
   }, [slug]);
   const shownSpec = spec && spec.id === slug ? spec : null;
-  const has = (t: TemplateInfo, k: NodeType) => t.node_types.includes(k);
   const cols: NodeType[] = ["llm", "router", "human", "tool", "code"];
+  const Icon = current ? (templateIcon[current.id] ?? Workflow) : Workflow;
   return (
-    <>
-      <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-        {templates.map((t) => {
-          const Icon = templateIcon[t.id] ?? Workflow;
-          const active = current?.id === t.id;
-          return (
-            <button key={t.id} onClick={() => setPicked(t.id)} onDoubleClick={() => fromTemplate(t.id)} className={`card group relative flex gap-3 p-3.5 text-left transition ${active ? "border-accent/60 shadow-[0_0_0_3px_rgb(197_241_53/0.12)]" : "hover:border-edge-2 hover:bg-panel-2/40"}`}>
-              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 transition ${active ? "bg-accent text-accent-ink ring-accent/40" : "bg-accent/10 text-accent ring-accent/20"}`}>
-                <Icon size={17} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[13.5px] font-semibold tracking-tight">{t.name}</span>
-                  <span className="shrink-0 font-mono text-[10.5px] text-dim">{t.nodes} nodes</span>
-                </span>
-                <span className="mt-0.5 line-clamp-2 block text-[11.5px] leading-relaxed text-muted">{t.description}</span>
-              </span>
-            </button>
-          );
-        })}
-        {!templates.length && <div className="card p-8 text-center text-sm text-muted md:col-span-2 2xl:col-span-4">No templates available.</div>}
-      </div>
-
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[3fr_2fr]">
-        <div className="card flex min-h-[26rem] min-w-0 flex-col overflow-hidden">
-          {current ? (
-            <>
-              <div className="flex items-center gap-3 border-b border-edge px-4 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{current.name}</div>
-                  <div className="truncate text-[11px] text-muted">{current.description}</div>
-                </div>
-                <TypeChips types={current.node_types} />
-                <button onClick={() => fromTemplate(current.id)} className="btn btn-sm btn-primary"><Plus size={13} strokeWidth={2.5} /> Use template</button>
-              </div>
-              <div className="relative min-h-0 flex-1">
-                {shownSpec ? <TemplatePreview spec={shownSpec} /> : <div className="grid h-full place-items-center text-xs text-dim">Loading preview…</div>}
-                <span className="pointer-events-none absolute right-3 bottom-2 text-[10px] text-dim">read-only preview · double-click a card to create</span>
-              </div>
-            </>
-          ) : (
-            <div className="grid flex-1 place-items-center text-sm text-muted">Pick a template to preview it.</div>
-          )}
+    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[19rem_minmax(0,1fr)]">
+      {/* master list */}
+      <aside className="card flex min-h-0 flex-col overflow-hidden">
+        <div className="flex items-center justify-between border-b border-edge px-4 py-2.5">
+          <div className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles size={14} className="text-accent" /> Templates</div>
+          <span className="text-[11px] text-dim">{templates.length} ready to use</span>
         </div>
+        <ul className="min-h-0 flex-1 divide-y divide-edge overflow-y-auto">
+          {templates.map((t) => {
+            const I = templateIcon[t.id] ?? Workflow;
+            const active = current?.id === t.id;
+            return (
+              <li key={t.id}>
+                <button onClick={() => setPicked(t.id)} onDoubleClick={() => fromTemplate(t.id)} className={`relative flex w-full gap-3 px-4 py-3 text-left transition ${active ? "bg-accent/[.06]" : "hover:bg-panel-2"}`}>
+                  {active && <span className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-accent" />}
+                  <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ${active ? "bg-accent text-accent-ink ring-accent/40" : "bg-accent/10 text-accent ring-accent/20"}`}><I size={15} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={`truncate text-[13px] font-semibold tracking-tight ${active ? "text-fg" : "text-fg/90"}`}>{t.name}</span>
+                      <span className="shrink-0 font-mono text-[10px] text-dim">{t.nodes} nodes</span>
+                    </span>
+                    <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-muted">{t.description}</span>
+                    <span className="mt-1.5 flex items-center gap-1">
+                      {cols.map((k) => {
+                        const m = typeMeta[k];
+                        const on = t.node_types.includes(k);
+                        return <span key={k} title={m.label} className={`grid h-4.5 w-4.5 place-items-center rounded ${on ? m.cls : "bg-panel-3 text-dim/50"}`}><m.icon size={10} /></span>;
+                      })}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+          {!templates.length && <li className="px-4 py-6 text-center text-xs text-muted">No templates available.</li>}
+        </ul>
+        <div className="border-t border-edge p-2">
+          <button onClick={onNew} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition hover:bg-panel-2">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-panel-3 text-muted ring-1 ring-edge-2"><Plus size={14} /></span>
+            <span className="min-w-0 flex-1"><span className="block font-medium text-fg">Blank graph</span><span className="block text-[10.5px] text-dim">Start and End only</span></span>
+            <ArrowRight size={12} className="text-dim" />
+          </button>
+          <button onClick={onImport} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition hover:bg-panel-2">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-panel-3 text-muted ring-1 ring-edge-2"><FileJson size={14} /></span>
+            <span className="min-w-0 flex-1"><span className="block font-medium text-fg">Import JSON</span><span className="block text-[10.5px] text-dim">Exported from the editor menu</span></span>
+            <ArrowRight size={12} className="text-dim" />
+          </button>
+        </div>
+      </aside>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="card min-w-0 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-edge px-4 py-2.5">
-              <div className="flex items-center gap-1.5 text-sm font-semibold"><LayoutGrid size={14} className="text-accent" /> What each template uses</div>
+      {/* detail */}
+      <section className="card relative flex min-h-[28rem] min-w-0 flex-col overflow-hidden">
+        {current ? (
+          <>
+            <div className="relative overflow-hidden border-b border-edge">
+              <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_right,black,transparent_70%)] opacity-60" />
+              <div className="relative flex flex-wrap items-center gap-4 px-5 py-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink shadow-[0_8px_24px_-8px_rgb(197_241_53/0.6)]"><Icon size={22} /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-[18px] font-semibold tracking-tight">{current.name}</h2>
+                    <span className="pill border border-edge-2 bg-panel-2 text-muted">{current.nodes} nodes</span>
+                    {shownSpec && <span className="pill border border-edge-2 bg-panel-2 text-muted">{shownSpec.edges.length} edges</span>}
+                  </div>
+                  <p className="mt-1 max-w-2xl text-[12.5px] leading-relaxed text-muted">{current.description}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <TypeChips types={current.node_types} />
+                  <button onClick={() => fromTemplate(current.id)} className="btn btn-primary"><Plus size={14} strokeWidth={2.5} /> Use template</button>
+                </div>
+              </div>
             </div>
-            <table className="w-full text-xs">
-              <thead className="bg-panel-2/60">
-                <tr className="eyebrow">
-                  <th className="px-4 py-2 text-left">Template</th>
-                  {cols.map((k) => <th key={k} className="w-0 whitespace-nowrap px-2.5 py-2 text-center">{typeMeta[k].label}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map((t) => (
-                  <tr key={t.id} onClick={() => setPicked(t.id)} className={`cursor-pointer border-t border-edge transition hover:bg-panel-2/70 ${current?.id === t.id ? "bg-accent/5" : ""}`}>
-                    <td className="max-w-0 px-4 py-2"><span className="block truncate font-medium text-fg">{t.name}</span></td>
-                    {cols.map((k) => {
-                      const I = typeMeta[k].icon;
-                      return <td key={k} className="px-2.5 py-2 text-center">{has(t, k) ? <span className={`inline-grid h-5 w-5 place-items-center rounded-md ${typeMeta[k].cls}`}><I size={11} /></span> : <span className="text-dim">–</span>}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <button onClick={onNew} className="card group flex items-center gap-3 p-3.5 text-left transition hover:border-accent/40">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-panel-3 text-muted ring-1 ring-edge-2 transition group-hover:bg-accent group-hover:text-accent-ink"><Plus size={16} /></span>
-              <span className="min-w-0">
-                <span className="block text-[13px] font-semibold">Blank graph</span>
-                <span className="block truncate text-[11px] text-muted">Start and End only</span>
-              </span>
-            </button>
-            <button onClick={onImport} className="card group flex items-center gap-3 p-3.5 text-left transition hover:border-accent/40">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-panel-3 text-muted ring-1 ring-edge-2 transition group-hover:bg-accent group-hover:text-accent-ink"><FileJson size={16} /></span>
-              <span className="min-w-0">
-                <span className="block text-[13px] font-semibold">Import JSON</span>
-                <span className="block truncate text-[11px] text-muted">Exported from the editor</span>
-              </span>
-            </button>
-          </div>
-          <div className="card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-edge px-4 py-2.5">
-              <div className="flex items-center gap-1.5 text-sm font-semibold"><Workflow size={14} className="text-accent" /> Nodes in {current?.name ?? "this template"}</div>
-              <span className="text-[11px] text-dim">{shownSpec ? `${shownSpec.nodes.length} nodes · ${shownSpec.edges.length} edges` : ""}</span>
+            <div className="relative min-h-0 flex-1">
+              {shownSpec ? <TemplatePreview spec={shownSpec} /> : <div className="grid h-full place-items-center text-xs text-dim">Loading preview…</div>}
+              <span className="pointer-events-none absolute top-2 right-3 rounded-md border border-edge-2 bg-panel/80 px-1.5 py-0.5 text-[10px] text-dim backdrop-blur">read-only preview</span>
             </div>
-            <ul className="min-h-0 flex-1 divide-y divide-edge overflow-y-auto">
+            <div className="flex items-center gap-2 overflow-x-auto border-t border-edge bg-panel-2/40 px-3 py-2">
+              <span className="eyebrow shrink-0 pr-1">Nodes</span>
               {(shownSpec?.nodes ?? []).map((n) => {
                 const m = typeMeta[n.type as NodeType];
                 const c = n.config as Record<string, unknown>;
-                const detail = String(c.model ?? c.tool ?? c.question ?? (c.prompt ? String(c.prompt).replace(/\s+/g, " ") : "") ?? "");
+                const detail = String(c.model ?? c.tool ?? "");
                 return (
-                  <li key={n.id} className="flex items-center gap-3 px-4 py-2 text-xs">
-                    <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${m.cls}`}><m.icon size={13} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2"><span className="truncate font-medium text-fg">{n.label}</span><span className="shrink-0 font-mono text-[10px] text-dim">{m.label}</span></span>
-                      {detail && <span className="block truncate font-mono text-[10.5px] text-muted">{detail}</span>}
-                    </span>
-                  </li>
+                  <span key={n.id} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-edge-2 bg-panel px-2 py-1 text-[11px]">
+                    <span className={`grid h-4.5 w-4.5 place-items-center rounded ${m.cls}`}><m.icon size={10} /></span>
+                    <span className="font-medium text-fg">{n.label}</span>
+                    {detail && <span className="font-mono text-[10px] text-dim">{detail.split("/").slice(-1)[0]}</span>}
+                  </span>
                 );
               })}
-              {!shownSpec && <li className="px-4 py-3 text-xs text-dim">Loading…</li>}
-            </ul>
-            <div className="border-t border-edge px-4 py-2 text-[10.5px] leading-relaxed text-dim">Creating from a template copies it into your graphs; the original is never changed.</div>
-          </div>
-        </div>
-      </div>
-    </>
+              <span className="ml-auto shrink-0 pl-2 text-[10.5px] text-dim">double-click a template to create it</span>
+            </div>
+          </>
+        ) : (
+          <div className="grid flex-1 place-items-center text-sm text-muted">Pick a template to preview it.</div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -956,76 +941,92 @@ function Guide() {
     [ShieldCheck, "Eval and ship", "Build a dataset, pick scorers, run an eval; failures light up the node that caused them. Sweep candidate models for a node and apply the cheapest one that still passes."],
   ];
   const order: NodeType[] = ["start", "llm", "tool", "router", "human", "code", "end"];
+  type Tab = "nodes" | "shortcuts" | "glossary" | "faq";
+  const [tab, setTab] = useState<Tab>("nodes");
+  const tabs: [Tab, LucideIcon, string][] = [
+    ["nodes", Workflow, "Node types"],
+    ["shortcuts", Keyboard, "Shortcuts"],
+    ["glossary", BookOpen, "Glossary"],
+    ["faq", HelpCircle, "Questions"],
+  ];
   return (
-    <>
-      <ol className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-        {steps.map(([Icon, title, body], i) => (
-          <li key={title} className="card relative p-4">
-            <span className="absolute top-3.5 right-4 font-mono text-[11px] text-dim">0{i + 1}</span>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent/10 text-accent ring-1 ring-accent/20"><Icon size={15} /></span>
-            <div className="mt-2.5 text-sm font-semibold">{title}</div>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-muted">{body}</p>
-          </li>
-        ))}
-      </ol>
-      <div className="grid gap-4 xl:grid-cols-[2fr_3fr]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="card p-4 text-[12.5px] text-muted">
-            <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><Keyboard size={14} className="text-accent" /> Shortcuts</div>
-            {[["⌘K", "command palette"], ["⌘↵", "run the graph"], ["⌘Z / ⇧⌘Z", "undo / redo"], ["⌫", "delete selection"], ["drag from a port", "connect nodes"]].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between border-t border-edge py-1.5 first:border-0"><span>{v}</span><kbd className="kbd">{k}</kbd></div>
-            ))}
-          </div>
-          <div className="card p-4 text-[12.5px] leading-relaxed text-muted">
-            <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><Cpu size={14} className="text-accent" /> Under the hood</div>
-            Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted; forking creates a new checkpoint whose parent is the one you edited. Console, timeline, cost and traces all derive from the same event log.
-          </div>
+    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      {/* stepper */}
+      <section className="card relative flex min-w-0 flex-col overflow-hidden p-6">
+        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
+        <div className="eyebrow">How it works</div>
+        <h2 className="mt-1.5 text-[26px] font-semibold tracking-[-0.02em]">Four loops, <span className="text-accent">one canvas.</span></h2>
+        <p className="mt-1 text-[12.5px] text-muted">Everything below runs on free tiers.</p>
+        <ol className="relative mt-6 mb-6 ml-4 flex flex-1 flex-col justify-evenly gap-6 border-l border-edge-2 pl-7">
+          {steps.map(([Icon, title, body], i) => (
+            <li key={title} className="relative">
+              <span className="absolute top-0 -left-[2.45rem] grid h-7 w-7 place-items-center rounded-full border-2 border-canvas bg-accent font-mono text-[11px] font-bold text-accent-ink ring-1 ring-accent/40">{i + 1}</span>
+              <div className="flex items-center gap-2 text-[15px] font-semibold"><Icon size={15} className="text-accent" /> {title}</div>
+              <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-muted">{body}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="rounded-r-xl border-l-2 border-accent bg-accent/[.06] px-4 py-3 pt-3 text-[12px] leading-relaxed text-muted">
+          <div className="mb-1 flex items-center gap-1.5 text-[12.5px] font-semibold text-fg"><Cpu size={13} className="text-accent" /> Under the hood</div>
+          Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted; forking creates a new checkpoint whose parent is the one you edited. Console, timeline, cost and traces all derive from the same event log.
         </div>
-        <div className="card min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-edge px-4 py-2.5">
-            <div className="flex items-center gap-1.5 text-sm font-semibold"><Workflow size={14} className="text-accent" /> Node types</div>
-            <span className="text-[11px] text-dim">what each block on the canvas does</span>
-          </div>
-          <ul className="divide-y divide-edge">
-            {order.map((k) => {
-              const m = typeMeta[k];
-              return (
-                <li key={k} className="flex items-center gap-3 px-4 py-2.5 text-xs">
-                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${m.cls}`}><m.icon size={14} /></span>
-                  <span className="w-16 shrink-0 font-medium text-fg">{nodeMeta[k].title}</span>
-                  <span className="min-w-0 flex-1 text-muted">{nodeMeta[k].hint}</span>
-                  <span className="hidden font-mono text-[10.5px] text-dim lg:inline">{guideNotes[k]}</span>
+      </section>
+
+      {/* tabbed reference */}
+      <section className="card flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="flex h-11 shrink-0 items-stretch gap-0.5 border-b border-edge px-2">
+          {tabs.map(([key, Icon, label]) => (
+            <button key={key} data-active={tab === key} onClick={() => setTab(key)} className={`tab-underline flex items-center gap-1.5 px-3 text-[12.5px] font-medium transition ${tab === key ? "text-fg" : "text-muted hover:text-fg"}`}>
+              <Icon size={13} className={tab === key ? "text-accent" : ""} /> {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {tab === "nodes" && (
+            <ul className="flex flex-1 flex-col divide-y divide-edge">
+              {order.map((k) => {
+                const m = typeMeta[k];
+                return (
+                  <li key={k} className="flex flex-1 items-center gap-3 px-4 py-3 text-xs">
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${m.cls}`}><m.icon size={16} /></span>
+                    <span className="w-16 shrink-0 text-[13.5px] font-medium text-fg">{nodeMeta[k].title}</span>
+                    <span className="min-w-0 flex-1 text-[12.5px] text-muted">{nodeMeta[k].hint}</span>
+                    <span className="hidden rounded-md border border-edge-2 bg-panel-2 px-1.5 py-0.5 font-mono text-[10.5px] text-dim lg:inline">{guideNotes[k]}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {tab === "shortcuts" && (
+            <ul className="flex flex-1 flex-col divide-y divide-edge text-[13px]">
+              {[["⌘K", "Open the command palette: add nodes, run, fit view, undo, delete."], ["⌘↵", "Run the graph. A dialog asks for the input variables no node produces."], ["⌘Z / ⇧⌘Z", "Undo and redo any canvas edit, including config changes."], ["⌫", "Delete the selected node or edge."], ["drag from a port", "Connect nodes. Routers have one port per branch along the bottom edge."], ["click a timeline bar", "Select that node and show the step's input, output and usage."]].map(([k, v]) => (
+                <li key={k} className="flex flex-1 items-center gap-4 px-4 py-3"><kbd className="kbd shrink-0 text-[11px]">{k}</kbd><span className="text-muted">{v}</span></li>
+              ))}
+            </ul>
+          )}
+          {tab === "glossary" && (
+            <dl className="flex flex-1 flex-col divide-y divide-edge text-[13px]">
+              {glossary.map(([term, def]) => (
+                <div key={term} className="flex flex-1 items-center gap-4 px-4 py-3">
+                  <dt className="w-24 shrink-0 font-medium text-fg">{term}</dt>
+                  <dd className="min-w-0 text-muted">{def}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {tab === "faq" && (
+            <ul className="flex flex-1 flex-col divide-y divide-edge text-[13px]">
+              {faq.map(([q, a]) => (
+                <li key={q} className="flex flex-1 flex-col justify-center px-4 py-3">
+                  <div className="font-medium text-fg">{q}</div>
+                  <p className="mt-0.5 leading-relaxed text-muted">{a}</p>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
-      <div className="grid flex-1 gap-4 xl:grid-cols-[2fr_3fr]">
-        <div className="card min-w-0 p-4">
-          <CardHead icon={BookOpen} title="Glossary" />
-          <dl className="divide-y divide-edge text-[12px]">
-            {glossary.map(([term, def]) => (
-              <div key={term} className="flex gap-3 py-2 first:pt-0 last:pb-0">
-                <dt className="w-24 shrink-0 font-medium text-fg">{term}</dt>
-                <dd className="min-w-0 text-muted">{def}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className="card min-w-0 p-4">
-          <CardHead icon={HelpCircle} title="Common questions" />
-          <div className="grid gap-x-6 gap-y-3 text-[12px] md:grid-cols-2">
-            {faq.map(([q, a]) => (
-              <div key={q}>
-                <div className="font-medium text-fg">{q}</div>
-                <p className="mt-0.5 leading-relaxed text-muted">{a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }
 
