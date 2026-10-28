@@ -81,6 +81,19 @@ function useFitRows(ref: React.RefObject<HTMLElement | null>, row = 42, chrome =
   return n;
 }
 
+/** How many list rows fit in a box whose height is set by flex, not by its content. */
+function useFitList(ref: React.RefObject<HTMLElement | null>, row: number, min = 3) {
+  const [n, setN] = useState(min);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => setN(Math.max(min, Math.floor((entries[0]?.contentRect.height ?? 0) / row))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, row, min]);
+  return n;
+}
+
 function TypeChips({ types, max = 7 }: { types: NodeType[]; max?: number }) {
   return (
     <div className="flex flex-wrap gap-1">
@@ -171,7 +184,7 @@ export default function GraphsPage() {
           {view === "runs" && <RunsView runs={runs} graphs={graphs ?? []} />}
           {view === "guide" && <Guide />}
         </div>
-        <RightRail runs={runs.slice(0, 5)} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
+        <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
       </div>
       <FreeTierToast />
     </main>
@@ -237,7 +250,7 @@ function FreeTierToast() {
   return (
     <div className="toast-in card fixed right-5 bottom-5 z-40 w-[22rem] overflow-hidden border-accent/30 p-4 text-xs leading-relaxed text-muted shadow-[0_20px_60px_-20px_rgb(0_0_0/0.8),0_0_0_1px_rgb(197_241_53/0.15)]" role="status">
       <div aria-hidden className="pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full bg-accent/20 blur-2xl" />
-      <button onClick={close} className="icon-btn absolute top-2 right-2" title="Dismiss" aria-label="Dismiss"><X size={14} /></button>
+      <button onClick={close} className="icon-btn absolute top-2 right-2 z-10" title="Dismiss" aria-label="Dismiss"><X size={14} /></button>
       <div className="relative flex gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-ink"><ShieldCheck size={17} /></span>
         <div className="min-w-0 pr-6">
@@ -252,15 +265,18 @@ function FreeTierToast() {
 
 /* ---------------- right rail (every view) ---------------- */
 
-function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: RunInfo[]; graphs: GraphSummary[]; health: Health }) {
+function RightRail({ runs: allRuns, paused, graphs, health }: { runs: RunInfo[]; paused: RunInfo[]; graphs: GraphSummary[]; health: Health }) {
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
+  const listRef = useRef<HTMLUListElement>(null);
+  const fit = useFitList(listRef, 30);
+  const runs = allRuns.slice(0, fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
     <aside className="flex min-w-0 flex-col gap-4">
-      <section className="card p-4">
+      <section className="card flex min-h-0 flex-1 flex-col p-4">
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
-        {!runs.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
-        <ul className="-mx-2 space-y-0.5">
+        {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
+        <ul ref={listRef} className="-mx-2 min-h-0 flex-1 space-y-0.5 overflow-hidden">
           {runs.map((r) => (
             <li key={r.id}>
               <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-panel-2">
@@ -272,7 +288,7 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
             </li>
           ))}
         </ul>
-        {runs.length > 0 && <div className="mt-3 flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>spent on these runs</span><b className="font-mono text-fg">${totalCost.toFixed(5)}</b></div>}
+        {runs.length > 0 && <div className="mt-2 flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>spent on these runs</span><b className="font-mono text-fg">${totalCost.toFixed(5)}</b></div>}
       </section>
 
       <section className="card p-4">
@@ -295,7 +311,7 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
       <ModelsCard />
 
 
-      <section className="card flex flex-1 flex-col p-4">
+      <section className="card p-4">
         <CardHead icon={Cpu} title="System" />
         <ul className="space-y-2 text-xs">
           {[
@@ -312,7 +328,7 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
             </li>
           ))}
         </ul>
-        <div className="mt-auto space-y-2 pt-3">
+        <div className="mt-3 space-y-2">
           <div className="grid grid-cols-2 gap-1.5 text-[10.5px]">
             {[["⌘K", "commands"], ["⌘↵", "run"], ["⌘Z", "undo"], ["⌫", "delete"]].map(([k, v]) => (
               <div key={k} className="flex items-center justify-between rounded-md border border-edge bg-panel-2/60 px-2 py-1 text-muted"><span>{v}</span><kbd className="kbd">{k}</kbd></div>
