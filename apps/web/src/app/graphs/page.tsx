@@ -38,6 +38,15 @@ const templateIcon: Record<string, LucideIcon> = {
 type View = "overview" | "graphs" | "templates" | "runs" | "guide";
 type Health = { groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null;
 
+/** "5 min ago", "2 h ago", "3 d ago" */
+function ago(iso: string): string {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+}
+
 function TypeChips({ types, max = 7 }: { types: NodeType[]; max?: number }) {
   return (
     <div className="flex flex-wrap gap-1">
@@ -172,8 +181,8 @@ export default function GraphsPage() {
 
         {view === "overview" && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
-            <Dashboard runs={runs} graphs={graphs ?? []} />
-            <RightRail runs={runs.slice(0, 8)} graphs={graphs ?? []} health={health} />
+            <Dashboard runs={runs} graphs={graphs ?? []} templates={templates} fromTemplate={fromTemplate} />
+            <RightRail runs={runs.slice(0, 8)} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
           </div>
         )}
 
@@ -369,7 +378,7 @@ function AppBar({ view, setView, health, onImport, onNew }: { view: View; setVie
 
 const runTone: Record<string, string> = { done: "bg-emerald-400", error: "bg-rose-400", paused: "bg-pink-400", running: "bg-sky-400", cancelled: "bg-amber-400", queued: "bg-zinc-500" };
 
-function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSummary[]; health: Health }) {
+function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: RunInfo[]; graphs: GraphSummary[]; health: Health }) {
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
@@ -393,6 +402,26 @@ function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSum
           ))}
         </ul>
         {runs.length > 0 && <div className="mt-3 flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>spent on these runs</span><b className="font-mono text-fg">${totalCost.toFixed(5)}</b></div>}
+      </section>
+
+      <section className="card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold"><UserRound size={14} className="text-pink-300" /> Needs attention</h3>
+          {paused.length > 0 && <span className="pill bg-pink-400/10 text-pink-300">{paused.length} paused</span>}
+        </div>
+        {!paused.length && <p className="text-xs text-muted">No runs are waiting on you.</p>}
+        <ul className="-mx-2 space-y-0.5">
+          {paused.map((r) => (
+            <li key={r.id}>
+              <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-panel-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-pink-400 shadow-[0_0_8px] shadow-pink-400/60" />
+                <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
+                <span className="shrink-0 text-dim">{ago(r.created_at)}</span>
+                <ArrowRight size={12} className="shrink-0 text-dim" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card p-4">
@@ -424,6 +453,14 @@ function RightRail({ runs, graphs, health }: { runs: RunInfo[]; graphs: GraphSum
         <div aria-hidden className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl" />
         <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-accent" /> Free-tier friendly</h3>
         Runs cost about <b className="font-mono text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
+      </section>
+
+
+      <section className="card p-4 text-xs text-muted">
+        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Keyboard size={14} className="text-accent" /> Shortcuts</h3>
+        {[["⌘K", "command palette"], ["⌘↵", "run the graph"], ["⌘Z", "undo"], ["⌫", "delete selection"]].map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between border-t border-edge py-1.5 first:border-0"><span>{v}</span><kbd className="kbd">{k}</kbd></div>
+        ))}
       </section>
     </aside>
   );
@@ -579,8 +616,10 @@ function CardHead({ icon: Icon, title, hint }: { icon?: LucideIcon; title: strin
   );
 }
 
-function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }) {
+function Dashboard({ runs, graphs, templates, fromTemplate }: { runs: RunInfo[]; graphs: GraphSummary[]; templates: TemplateInfo[]; fromTemplate: (slug: string) => void }) {
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
+  const recent = [...graphs].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6);
+  const graphsWithRuns = new Set(runs.map((r) => r.graph_id)).size;
   const byStatus: Record<string, number> = {};
   for (const r of runs) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
   const done = byStatus.done ?? 0, finished = done + (byStatus.error ?? 0) + (byStatus.cancelled ?? 0);
@@ -630,10 +669,12 @@ function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
         <div className="card p-4">
           <CardHead icon={BarChart3} title="Runs per graph" hint="top 5" />
           <Bars rows={topGraphs} />
+          <div className="mt-3 flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>graphs with runs</span><b className="font-mono text-fg">{graphsWithRuns} / {graphs.length}</b></div>
         </div>
         <div className="card p-4">
           <CardHead icon={Coins} title="Spend per graph" hint="USD" />
           <Bars rows={topCost} color="#fbbf24" fmt={(v) => `$${v.toFixed(5)}`} />
+          <div className="mt-3 flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>average per run</span><b className="font-mono text-fg">${runs.length ? (cost / runs.length).toFixed(6) : "0"}</b></div>
         </div>
       </div>
       <div className="card p-4">
@@ -647,6 +688,48 @@ function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
             </div>
           ); })}
           {!hours.length && <p className="text-[11px] text-dim">no runs yet</p>}
+        </div>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[3fr_2fr]">
+        <div className="card min-w-0 p-4">
+          <CardHead icon={Workflow} title="Recently edited" hint={`last ${recent.length}`} />
+          <ul className="-mx-2 divide-y divide-edge">
+            {recent.map((g) => (
+              <li key={g.id}>
+                <Link href={`/graphs/${g.id}`} className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs transition hover:bg-panel-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-panel-3 text-muted ring-1 ring-edge-2 transition group-hover:bg-accent/15 group-hover:text-accent"><Workflow size={12} /></span>
+                  <span className="min-w-0 flex-1 truncate font-medium text-fg">{g.name}</span>
+                  <span className="hidden font-mono text-[10.5px] text-dim sm:inline">{g.nodes} nodes</span>
+                  {g.issues > 0 ? <span className="pill bg-amber-400/10 text-amber-300">{g.issues} issue{g.issues > 1 ? "s" : ""}</span> : <span className="pill bg-emerald-400/10 text-emerald-300">ready</span>}
+                  <span className="w-16 shrink-0 text-right text-[10.5px] text-dim">{ago(g.updated_at)}</span>
+                  <ArrowRight size={13} className="shrink-0 text-dim transition group-hover:text-accent" />
+                </Link>
+              </li>
+            ))}
+            {!recent.length && <li className="px-2 py-2 text-[11px] text-dim">No graphs yet.</li>}
+          </ul>
+        </div>
+        <div className="card min-w-0 p-4">
+          <CardHead icon={Sparkles} title="Start from a template" hint="one click" />
+          <ul className="-mx-2 divide-y divide-edge">
+            {templates.map((t) => {
+              const Icon = templateIcon[t.id] ?? Workflow;
+              return (
+                <li key={t.id}>
+                  <button onClick={() => fromTemplate(t.id)} className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition hover:bg-panel-2">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent group-hover:text-accent-ink"><Icon size={14} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-fg">{t.name}</span>
+                      <span className="block truncate text-[10.5px] text-dim">{t.description}</span>
+                    </span>
+                    <span className="pill hidden border border-edge-2 text-muted sm:inline-flex">{t.nodes} nodes</span>
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-dim transition group-hover:text-accent">Use <ArrowRight size={12} /></span>
+                  </button>
+                </li>
+              );
+            })}
+            {!templates.length && <li className="px-2 py-2 text-[11px] text-dim">No templates available.</li>}
+          </ul>
         </div>
       </div>
     </section>
