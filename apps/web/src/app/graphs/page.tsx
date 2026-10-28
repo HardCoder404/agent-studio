@@ -182,7 +182,7 @@ export default function GraphsPage() {
         {view === "overview" && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
             <Dashboard runs={runs} graphs={graphs ?? []} templates={templates} fromTemplate={fromTemplate} />
-            <RightRail runs={runs.slice(0, 8)} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
+            <RightRail runs={runs.slice(0, 6)} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
           </div>
         )}
 
@@ -382,7 +382,7 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className="space-y-4 lg:sticky lg:top-[4.5rem] lg:self-start">
+    <aside className="flex min-w-0 flex-col gap-4">
       <section id="runs" className="card p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Activity size={14} className="text-accent" /> Recent runs</h3>
@@ -424,7 +424,15 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
         </ul>
       </section>
 
-      <section className="card p-4">
+
+      <section className="card relative overflow-hidden p-4 text-xs leading-relaxed text-muted">
+        <div aria-hidden className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl" />
+        <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-accent" /> Free-tier friendly</h3>
+        Runs cost about <b className="font-mono text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
+      </section>
+
+
+      <section className="card flex flex-1 flex-col p-4">
         <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold"><Cpu size={14} className="text-accent" /> System</h3>
         <ul className="space-y-2 text-xs">
           {[
@@ -442,25 +450,11 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
           ))}
         </ul>
         {health?.budget && (
-          <div className="mt-3 border-t border-edge pt-2.5">
+          <div className="mt-auto border-t border-edge pt-2.5">
             <div className="mb-1.5 flex justify-between text-[11px] text-muted"><span>model calls today</span><span className="font-mono text-fg">{health.budget.used}{health.budget.limit ? ` / ${health.budget.limit}` : ""}</span></div>
             {health.budget.limit && <div className="h-1.5 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(1, Math.min(100, (health.budget.used / health.budget.limit) * 100))}%` }} /></div>}
           </div>
         )}
-      </section>
-
-      <section className="card relative overflow-hidden p-4 text-xs leading-relaxed text-muted">
-        <div aria-hidden className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl" />
-        <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-accent" /> Free-tier friendly</h3>
-        Runs cost about <b className="font-mono text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
-      </section>
-
-
-      <section className="card p-4 text-xs text-muted">
-        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg"><Keyboard size={14} className="text-accent" /> Shortcuts</h3>
-        {[["⌘K", "command palette"], ["⌘↵", "run the graph"], ["⌘Z", "undo"], ["⌫", "delete selection"]].map(([k, v]) => (
-          <div key={k} className="flex items-center justify-between border-t border-edge py-1.5 first:border-0"><span>{v}</span><kbd className="kbd">{k}</kbd></div>
-        ))}
       </section>
     </aside>
   );
@@ -643,7 +637,7 @@ function Dashboard({ runs, graphs, templates, fromTemplate }: { runs: RunInfo[];
     [Coins, "Spend", `$${cost.toFixed(4)}`, `${calls} model calls · p50 ${p50 != null ? (p50 / 1000).toFixed(1) + " s" : "–"}`],
   ];
   return (
-    <section className="min-w-0 space-y-4">
+    <section className="flex min-w-0 flex-col gap-4">
       <div className="card grid grid-cols-2 divide-y divide-edge md:grid-cols-4 md:divide-x md:divide-y-0">
         {kpis.map(([Icon, label, value, sub]) => (
           <div key={label} className="p-4">
@@ -690,7 +684,7 @@ function Dashboard({ runs, graphs, templates, fromTemplate }: { runs: RunInfo[];
           {!hours.length && <p className="text-[11px] text-dim">no runs yet</p>}
         </div>
       </div>
-      <div className="grid gap-4 xl:grid-cols-[3fr_2fr]">
+      <div className="grid flex-1 gap-4 xl:grid-cols-[3fr_2fr]">
         <div className="card min-w-0 p-4">
           <CardHead icon={Workflow} title="Recently edited" hint={`last ${recent.length}`} />
           <ul className="-mx-2 divide-y divide-edge">
