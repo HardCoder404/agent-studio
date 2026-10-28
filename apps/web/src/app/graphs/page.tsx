@@ -526,12 +526,12 @@ function Donut({ parts, size = 120 }: { parts: [string, number, string][]; size?
   );
 }
 
-function Bars({ rows, color = "#38bdf8", fmt = (v: number) => String(v) }: { rows: [string, number][]; color?: string; fmt?: (v: number) => string }) {
-  const max = Math.max(...rows.map((r) => r[1]), 1);
+function Bars({ rows, color = "#38bdf8", fmt = (v: number) => String(v) }: { rows: [string, string, number][]; color?: string; fmt?: (v: number) => string }) {
+  const max = Math.max(...rows.map((r) => r[2]), 1);
   return (
     <div className="space-y-1.5">
-      {rows.map(([label, v]) => (
-        <div key={label} className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-2 text-[11px]">
+      {rows.map(([id, label, v]) => (
+        <div key={id} className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-2 text-[11px]">
           <span className="truncate text-muted" title={label}>{label}</span>
           <div className="h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full" style={{ width: `${(v / max) * 100}%`, background: color }} /></div>
           <span className="text-right tabular-nums text-fg">{fmt(v)}</span>
@@ -553,10 +553,10 @@ function Dashboard({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] }
   const p50 = durations.length ? durations[Math.floor(durations.length / 2)] : null;
   const perGraph: Record<string, number> = {};
   for (const r of runs) perGraph[r.graph_id] = (perGraph[r.graph_id] ?? 0) + 1;
-  const topGraphs = Object.entries(perGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => [nameOf[id] ?? "deleted graph", n] as [string, number]);
+  const topGraphs = Object.entries(perGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => [id, nameOf[id] ?? "deleted graph", n] as [string, string, number]);
   const costGraph: Record<string, number> = {};
   for (const r of runs) costGraph[r.graph_id] = (costGraph[r.graph_id] ?? 0) + (r.usage?.cost_usd ?? 0);
-  const topCost = Object.entries(costGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => [nameOf[id] ?? "deleted graph", v] as [string, number]);
+  const topCost = Object.entries(costGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => [id, nameOf[id] ?? "deleted graph", v] as [string, string, number]);
   const byHour: Record<string, number> = {};
   for (const r of runs) { const h = new Date(r.created_at); const k = `${h.getDate()}/${h.getMonth() + 1} ${String(h.getHours()).padStart(2, "0")}h`; byHour[k] = (byHour[k] ?? 0) + 1; }
   const hours = Object.entries(byHour).slice(0, 8).reverse() as [string, number][];
