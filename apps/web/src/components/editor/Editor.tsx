@@ -45,6 +45,7 @@ export function Editor() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("unhandledrejection", onRejection);
       useRunStore.getState().clear();
+      useGraphStore.setState({ issues: [], selectedId: null });
     };
   }, []);
 

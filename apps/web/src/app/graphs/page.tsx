@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, UserRound, Workflow, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -173,6 +173,7 @@ export default function GraphsPage() {
         </div>
         <RightRail runs={runs.slice(0, 5)} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
       </div>
+      <FreeTierToast />
     </main>
   );
 }
@@ -213,6 +214,39 @@ function AppBar({ view, setView, health, onImport, onNew }: { view: View; setVie
         </div>
       </div>
     </header>
+  );
+}
+
+/** Bottom-right note about running on free tiers. Dismissed once per browser. */
+function FreeTierToast() {
+  const KEY = "free-tier-note-dismissed";
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      let seen = false;
+      try { seen = localStorage.getItem(KEY) === "1"; } catch {}
+      if (!seen) setShow(true);
+    }, 900);
+    return () => clearTimeout(id);
+  }, []);
+  if (!show) return null;
+  const close = () => {
+    setShow(false);
+    try { localStorage.setItem(KEY, "1"); } catch {}
+  };
+  return (
+    <div className="toast-in card fixed right-5 bottom-5 z-40 w-[22rem] overflow-hidden border-accent/30 p-4 text-xs leading-relaxed text-muted shadow-[0_20px_60px_-20px_rgb(0_0_0/0.8),0_0_0_1px_rgb(197_241_53/0.15)]" role="status">
+      <div aria-hidden className="pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full bg-accent/20 blur-2xl" />
+      <button onClick={close} className="icon-btn absolute top-2 right-2" title="Dismiss" aria-label="Dismiss"><X size={14} /></button>
+      <div className="relative flex gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-ink"><ShieldCheck size={17} /></span>
+        <div className="min-w-0 pr-6">
+          <div className="text-[13px] font-semibold text-fg">Free-tier friendly</div>
+          <p className="mt-0.5">Runs cost about <b className="font-mono text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.</p>
+          <button onClick={close} className="btn btn-sm btn-ghost mt-2.5">Got it</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -260,11 +294,6 @@ function RightRail({ runs, paused, graphs, health }: { runs: RunInfo[]; paused: 
 
       <ModelsCard />
 
-      <section className="card relative overflow-hidden p-4 text-xs leading-relaxed text-muted">
-        <div aria-hidden className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-accent/15 blur-2xl" />
-        <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg"><ShieldCheck size={14} className="text-accent" /> Free-tier friendly</h3>
-        Runs cost about <b className="font-mono text-fg">$0.00007</b> each on Groq. Evals run 3 rows at a time and sweeps go model by model, so free rate limits hold.
-      </section>
 
       <section className="card flex flex-1 flex-col p-4">
         <CardHead icon={Cpu} title="System" />

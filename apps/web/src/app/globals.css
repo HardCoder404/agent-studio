@@ -346,3 +346,18 @@ body {
   stroke-dasharray: 6 10;
   animation: flow-dash 1.1s linear infinite;
 }
+
+/* bottom-right note slides in */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.toast-in {
+  animation: toast-in 0.35s ease-out both;
+}
