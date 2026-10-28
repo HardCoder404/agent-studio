@@ -39,7 +39,7 @@ export function TopBar({ onRun }: { onRun: () => void }) {
       <Link href="/graphs" className="icon-btn" title="All graphs">
         <ArrowLeft size={16} />
       </Link>
-      <Link href="/graphs" className="hidden items-center gap-2 pr-1 sm:flex" title="Agent Studio">
+      <Link href="/" className="hidden items-center gap-2 pr-1 sm:flex" title="Agent Studio">
         <Logo size="sm" />
       </Link>
       <span className="hidden text-dim sm:inline">/</span>

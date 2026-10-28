@@ -3,8 +3,8 @@
 import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { nodeMeta, type GraphSpec, type GraphSummary, type NodeType, type RunInfo, type TemplateInfo } from "@/lib/types";
 import { API_URL } from "@/lib/api";
@@ -46,6 +46,24 @@ const runTone: Record<string, string> = { done: "bg-emerald-400", error: "bg-ros
 const statusColors: Record<string, string> = { done: "#34d399", error: "#fb7185", paused: "#f472b6", running: "#38bdf8", cancelled: "#fbbf24", queued: "#71717a" };
 
 type View = "overview" | "graphs" | "templates" | "runs" | "guide";
+const VIEW_PATH: Record<View, string> = { overview: "/", graphs: "/graphs", templates: "/templates", runs: "/runs", guide: "/guide" };
+
+type Landing = {
+  graphs: GraphSummary[] | null;
+  templates: TemplateInfo[];
+  runs: RunInfo[];
+  health: Health;
+  refresh: () => void;
+  create: () => void;
+  fromTemplate: (slug: string) => void;
+  onImport: () => void;
+};
+const LandingCtx = createContext<Landing | null>(null);
+function useLanding(): Landing {
+  const c = useContext(LandingCtx);
+  if (!c) throw new Error("landing context missing");
+  return c;
+}
 type Health = { groq?: boolean; gemini?: boolean; langfuse?: boolean; code_sandbox?: string; budget?: { used: number; limit: number | null } } | null;
 
 /** "5 min ago", "2 h ago", "3 d ago" */
@@ -132,15 +150,11 @@ function Pager({ page, pages, setPage, left }: { page: number; pages: number; se
   );
 }
 
-export default function GraphsPage() {
+/** Shared shell for the landing routes: app bar, data, the right rail and the free-tier note. Pages render the view. */
+export function LandingShell({ children }: { children: React.ReactNode }) {
   const [graphs, setGraphs] = useState<GraphSummary[] | null>(null);
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [view, setViewState] = useState<View>("overview");
-  const setView = (v: View) => {
-    setViewState(v);
-    window.history.replaceState(null, "", v === "overview" ? "/graphs" : `/graphs#${v}`);
-  };
   const [runs, setRuns] = useState<RunInfo[]>([]);
   const [health, setHealth] = useState<Health>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -148,9 +162,6 @@ export default function GraphsPage() {
 
   const refresh = () => api.listGraphs().then(setGraphs).catch((e) => setError(String(e)));
   useEffect(() => {
-    // the hash is not available during SSR; pick the view up after hydration
-    const h = window.location.hash.replace("#", "");
-    if (["graphs", "templates", "runs", "guide"].includes(h)) queueMicrotask(() => setViewState(h as View));
     refresh();
     api.listTemplates().then(setTemplates).catch(() => {});
     fetch(`${API_URL}/runs?limit=200`).then((r) => r.json()).then(setRuns).catch(() => {});
@@ -171,27 +182,50 @@ export default function GraphsPage() {
   const onImport = () => fileRef.current?.click();
 
   return (
-    <main className="relative min-h-full overflow-x-hidden">
-      <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
-      <AppBar view={view} setView={setView} health={health} onImport={onImport} onNew={create} />
+    <LandingCtx.Provider value={{ graphs, templates, runs, health, refresh, create, fromTemplate, onImport }}>
+      <main className="relative min-h-full overflow-x-hidden">
+        <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
+        <AppBar health={health} onImport={onImport} onNew={create} />
 
-      <div className="mx-auto grid w-full max-w-[1680px] min-h-[calc(100vh-3.5rem)] gap-4 px-4 py-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
-        <div className="flex min-w-0 flex-col gap-4">
-          {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
-          {view === "overview" && <Overview runs={runs} graphs={graphs} templates={templates} fromTemplate={fromTemplate} setView={setView} onNew={create} />}
-          {view === "graphs" && <GraphsView graphs={graphs} refresh={refresh} onNew={create} />}
-          {view === "templates" && <TemplatesView templates={templates} fromTemplate={fromTemplate} onImport={onImport} onNew={create} />}
-          {view === "runs" && <RunsView runs={runs} graphs={graphs ?? []} />}
-          {view === "guide" && <Guide />}
+        <div className="mx-auto grid w-full max-w-[1680px] gap-4 px-4 py-4 md:px-6 xl:min-h-[calc(100vh-3.5rem)] xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
+          <div className="flex min-w-0 flex-col gap-4">
+            {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
+            {children}
+          </div>
+          <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
         </div>
-        <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
-      </div>
-      <FreeTierToast />
-    </main>
+        <FreeTierToast />
+      </main>
+    </LandingCtx.Provider>
   );
 }
 
-function AppBar({ view, setView, health, onImport, onNew }: { view: View; setView: (v: View) => void; health: Health; onImport: () => void; onNew: () => void }) {
+/* ---------------- route views (thin wrappers over the context) ---------------- */
+
+export function OverviewPage() {
+  const c = useLanding();
+  return <Overview runs={c.runs} graphs={c.graphs} templates={c.templates} fromTemplate={c.fromTemplate} onNew={c.create} />;
+}
+export function GraphsPage() {
+  const c = useLanding();
+  return <GraphsView graphs={c.graphs} refresh={c.refresh} onNew={c.create} />;
+}
+export function TemplatesPage() {
+  const c = useLanding();
+  return <TemplatesView templates={c.templates} fromTemplate={c.fromTemplate} onImport={c.onImport} onNew={c.create} />;
+}
+export function RunsPage() {
+  const c = useLanding();
+  return <RunsView runs={c.runs} graphs={c.graphs ?? []} />;
+}
+export function GuidePage() {
+  return <Guide />;
+}
+
+function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => void; onNew: () => void }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const view: View = (Object.keys(VIEW_PATH) as View[]).find((k) => VIEW_PATH[k] === pathname) ?? "overview";
   const items: [LucideIcon, string, View][] = [
     [LayoutGrid, "Overview", "overview"],
     [Workflow, "Graphs", "graphs"],
@@ -203,18 +237,18 @@ function AppBar({ view, setView, health, onImport, onNew }: { view: View; setVie
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
       <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center gap-3 px-4 md:px-6">
-        <button onClick={() => setView("overview")} className="flex items-center gap-2.5 pr-2">
+        <Link href="/" className="flex items-center gap-2.5 pr-2">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
-        </button>
+        </Link>
         <nav className="ml-2 hidden h-full items-stretch md:flex">
           {items.map(([Icon, label, key]) => (
-            <button key={key} data-active={view === key} onClick={() => setView(key)} className={`tab-underline flex items-center gap-1.5 px-3 text-[13px] font-medium transition ${view === key ? "text-fg" : "text-muted hover:text-fg"}`}>
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`tab-underline flex items-center gap-1.5 px-3 text-[13px] font-medium transition ${view === key ? "text-fg" : "text-muted hover:text-fg"}`}>
               <Icon size={14} className={view === key ? "text-accent" : ""} /> {label}
-            </button>
+            </Link>
           ))}
         </nav>
-        <select value={view} onChange={(e) => setView(e.target.value as View)} className="input ml-1 w-auto py-1 text-xs md:hidden">
+        <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input ml-1 w-auto py-1 text-xs md:hidden">
           {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
         </select>
         <div className="ml-auto flex items-center gap-2">
@@ -272,11 +306,11 @@ function RightRail({ runs: allRuns, paused, graphs, health }: { runs: RunInfo[];
   const runs = allRuns.slice(0, fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className="flex min-w-0 flex-col gap-4">
+    <aside className="grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col">
       <section className="card flex min-h-0 flex-1 flex-col p-4">
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
         {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
-        <ul ref={listRef} className="-mx-2 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+        <ul ref={listRef} className="-mx-2 min-h-[9.5rem] flex-1 space-y-0.5 overflow-hidden xl:min-h-0">
           {runs.map((r) => (
             <li key={r.id}>
               <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-panel-2">
@@ -371,7 +405,7 @@ function ModelsCard() {
 
 /* ---------------- overview ---------------- */
 
-function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView, onNew }: { runs: RunInfo[]; graphs: GraphSummary[] | null; templates: TemplateInfo[]; fromTemplate: (slug: string) => void; setView: (v: View) => void; onNew: () => void }) {
+function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }: { runs: RunInfo[]; graphs: GraphSummary[] | null; templates: TemplateInfo[]; fromTemplate: (slug: string) => void; onNew: () => void }) {
   const graphs = graphsOrNull ?? [];
   const healthy = graphs.filter((g) => g.issues === 0).length;
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
@@ -445,7 +479,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <button onClick={onNew} className="btn btn-primary"><Plus size={15} strokeWidth={2.5} /> New graph</button>
-              <button onClick={() => setView("templates")} className="btn btn-ghost"><Sparkles size={14} className="text-accent" /> Browse templates</button>
+              <Link href="/templates" className="btn btn-ghost"><Sparkles size={14} className="text-accent" /> Browse templates</Link>
               <span className="ml-1 hidden items-center gap-1.5 text-[11px] text-dim sm:flex"><kbd className="kbd">⌘K</kbd> commands · <kbd className="kbd">⌘↵</kbd> run</span>
             </div>
             <HeroFlow />
