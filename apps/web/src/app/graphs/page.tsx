@@ -330,7 +330,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
   const graphs = graphsOrNull ?? [];
   const healthy = graphs.filter((g) => g.issues === 0).length;
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
-  const recent = [...graphs].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6);
+  const recent = [...graphs].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 5);
   const graphsWithRuns = new Set(runs.map((r) => r.graph_id)).size;
   const byStatus: Record<string, number> = {};
   for (const r of runs) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
@@ -363,6 +363,12 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
       if (i >= 0 && i < N) { series[i].runs += 1; series[i].cost += r.usage?.cost_usd ?? 0; }
     }
   }
+  const perGraphStatus: Record<string, Record<string, number>> = {};
+  for (const r of runs) { (perGraphStatus[r.graph_id] ??= {})[r.status] = (perGraphStatus[r.graph_id]?.[r.status] ?? 0) + 1; }
+  const tokIn = runs.reduce((a, r) => a + (r.usage?.input_tokens ?? 0), 0);
+  const tokOut = runs.reduce((a, r) => a + (r.usage?.output_tokens ?? 0), 0);
+  const waiting = runs.filter((r) => r.status === "paused").length;
+  const statusOrder = ["done", "running", "paused", "queued", "cancelled", "error"];
   const runs7 = series.reduce((a, b) => a + b.runs, 0);
   const cost7 = series.reduce((a, b) => a + b.cost, 0);
   const kpis: [LucideIcon, string, string, string][] = [
@@ -432,27 +438,99 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, setView
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="card p-4">
+        {/* run outcomes */}
+        <div className="card flex flex-col p-4">
           <CardHead title="Run outcomes" hint={`${runs.length} runs`} />
-          <div className="flex items-center gap-4">
-            <Donut parts={Object.entries(byStatus).map(([k, v]) => [k, v, statusColors[k] ?? "#71717a"])} />
-            <ul className="space-y-1.5 text-[11px]">
-              {Object.entries(byStatus).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
-                <li key={k} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="w-16 text-muted">{k}</span><span className="font-mono tabular-nums text-fg">{v}</span><span className="font-mono text-dim">{Math.round((v / (runs.length || 1)) * 100)}%</span></li>
+          <div className="flex items-center gap-5">
+            <Donut
+              parts={statusOrder.filter((k) => byStatus[k]).map((k) => [k, byStatus[k], statusColors[k] ?? "#71717a"])}
+              size={124}
+              center={
+                <>
+                  <div className="text-[22px] font-semibold tabular-nums leading-none tracking-tight">{finished ? `${Math.round((done / finished) * 100)}%` : "–"}</div>
+                  <div className="mt-1 text-[9.5px] font-medium tracking-wider text-dim uppercase">success</div>
+                </>
+              }
+            />
+            <ul className="min-w-0 flex-1 space-y-2 text-[11px]">
+              {statusOrder.filter((k) => byStatus[k]).map((k) => (
+                <li key={k}>
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} />
+                    <span className="flex-1 capitalize text-muted">{k}</span>
+                    <span className="font-mono tabular-nums text-fg">{byStatus[k]}</span>
+                    <span className="w-8 text-right font-mono text-dim">{Math.round((byStatus[k] / (runs.length || 1)) * 100)}%</span>
+                  </div>
+                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(byStatus[k] / (runs.length || 1)) * 100}%`, background: statusColors[k] ?? "#71717a" }} /></div>
+                </li>
               ))}
               {!runs.length && <li className="text-dim">no runs yet</li>}
             </ul>
           </div>
+          <div className="mt-auto grid grid-cols-3 divide-x divide-edge border-t border-edge pt-3 text-[11px]">
+            <div className="pr-3"><div className="font-mono text-[13px] text-fg">{p50 != null ? `${(p50 / 1000).toFixed(1)} s` : "–"}</div><div className="text-dim">median run</div></div>
+            <div className="px-3"><div className="font-mono text-[13px] text-fg">{calls}</div><div className="text-dim">model calls</div></div>
+            <div className="pl-3"><div className={`font-mono text-[13px] ${waiting ? "text-pink-300" : "text-fg"}`}>{waiting}</div><div className="text-dim">waiting on you</div></div>
+          </div>
         </div>
+
+        {/* runs per graph */}
         <div className="card flex flex-col p-4">
-          <CardHead icon={BarChart3} title="Runs per graph" hint="top 5" />
-          <Bars rows={topGraphs} />
-          <div className="mt-auto flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>graphs with runs</span><b className="font-mono text-fg">{graphsWithRuns} / {graphs.length}</b></div>
+          <CardHead icon={BarChart3} title="Runs per graph" hint="top 5 · by status" />
+          <ol className="space-y-2.5">
+            {topGraphs.map(([id, label, n], i) => {
+              const st = perGraphStatus[id] ?? {};
+              return (
+                <li key={id}>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="grid h-4.5 w-4.5 shrink-0 place-items-center rounded-md bg-panel-3 font-mono text-[9.5px] text-dim">{i + 1}</span>
+                    <Link href={`/graphs/${id}`} className="min-w-0 flex-1 truncate text-fg hover:text-accent" title={label}>{label}</Link>
+                    <span className="font-mono tabular-nums text-fg">{n}</span>
+                    <span className="w-8 text-right font-mono text-dim">{Math.round((n / (runs.length || 1)) * 100)}%</span>
+                  </div>
+                  <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-panel-3" style={{ width: `${(n / Math.max(1, topGraphs[0]?.[2] ?? 1)) * 100}%` }} title={statusOrder.filter((k) => st[k]).map((k) => `${k} ${st[k]}`).join(" · ")}>
+                    {statusOrder.filter((k) => st[k]).map((k) => (
+                      <div key={k} className="h-full" style={{ width: `${(st[k] / n) * 100}%`, background: statusColors[k] ?? "#71717a" }} />
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
+            {!topGraphs.length && <li className="text-[11px] text-dim">no runs yet</li>}
+          </ol>
+          <div className="mt-auto flex items-center gap-3 border-t border-edge pt-3 text-[11px] text-muted">
+            <span className="flex-1 truncate">{topGraphs[0] ? <>most active <b className="text-fg">{topGraphs[0][1]}</b></> : "no graph has run yet"}</span>
+            <span>graphs with runs <b className="font-mono text-fg">{graphsWithRuns} / {graphs.length}</b></span>
+          </div>
         </div>
+
+        {/* spend */}
         <div className="card flex flex-col p-4">
-          <CardHead icon={Coins} title="Spend per graph" hint="USD" />
-          <Bars rows={topCost} color="#fbbf24" fmt={(v) => `$${v.toFixed(5)}`} />
-          <div className="mt-auto flex justify-between border-t border-edge pt-2.5 text-[11px] text-muted"><span>average per run</span><b className="font-mono text-fg">${runs.length ? (cost / runs.length).toFixed(6) : "0"}</b></div>
+          <CardHead icon={Coins} title="Spend" hint={`$${cost.toFixed(5)} total`} />
+          <div className="mb-3">
+            <div className="mb-1 flex justify-between text-[10.5px] text-dim"><span>tokens in <b className="font-mono text-muted">{tokIn.toLocaleString()}</b></span><span>out <b className="font-mono text-muted">{tokOut.toLocaleString()}</b></span></div>
+            <div className="flex h-2 overflow-hidden rounded-full bg-panel-3">
+              <div className="h-full bg-sky-400/70" style={{ width: `${(tokIn / Math.max(1, tokIn + tokOut)) * 100}%` }} title="input tokens" />
+              <div className="h-full bg-amber-400/80" style={{ width: `${(tokOut / Math.max(1, tokIn + tokOut)) * 100}%` }} title="output tokens" />
+            </div>
+          </div>
+          <ol className="space-y-2">
+            {topCost.map(([id, label, v]) => (
+              <li key={id} className="text-[11px]">
+                <div className="flex items-center gap-2">
+                  <Link href={`/graphs/${id}`} className="min-w-0 flex-1 truncate text-muted hover:text-accent" title={label}>{label}</Link>
+                  <span className="font-mono tabular-nums text-fg">${v.toFixed(5)}</span>
+                  <span className="w-8 text-right font-mono text-dim">{Math.round((v / (cost || 1)) * 100)}%</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full bg-amber-400/80" style={{ width: `${(v / Math.max(cost, 1e-12)) * 100}%` }} /></div>
+              </li>
+            ))}
+            {!topCost.length && <li className="text-[11px] text-dim">no spend yet</li>}
+          </ol>
+          <div className="mt-auto grid grid-cols-2 divide-x divide-edge border-t border-edge pt-3 text-[11px]">
+            <div className="pr-3"><div className="font-mono text-[13px] text-fg">${runs.length ? (cost / runs.length).toFixed(6) : "0"}</div><div className="text-dim">average per run</div></div>
+            <div className="pl-3"><div className="font-mono text-[13px] text-fg">${calls ? (cost / calls).toFixed(6) : "0"}</div><div className="text-dim">per model call</div></div>
+          </div>
         </div>
       </div>
 
@@ -1091,7 +1169,7 @@ function RunsLine({ series }: { series: { t: number; runs: number; cost: number 
 
 /* ---------------- charts ---------------- */
 
-function Donut({ parts, size = 116 }: { parts: [string, number, string][]; size?: number }) {
+function Donut({ parts, size = 116, center }: { parts: [string, number, string][]; size?: number; center?: React.ReactNode }) {
   const total = parts.reduce((a, p) => a + p[1], 0) || 1;
   const r = size / 2 - 9, c = 2 * Math.PI * r;
   // precompute arc offsets: no mutation during render
@@ -1100,27 +1178,15 @@ function Donut({ parts, size = 116 }: { parts: [string, number, string][]; size?
     return [...acc, { label, color, len: (v / total) * c, offset }];
   }, []);
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--panel-3)" strokeWidth={12} />
-      {arcs.map((a) => (
-        <circle key={a.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={a.color} strokeWidth={12} strokeDasharray={`${Math.max(0, a.len - 2)} ${c - Math.max(0, a.len - 2)}`} strokeDashoffset={-a.offset} />
-      ))}
-    </svg>
-  );
-}
-
-function Bars({ rows, color = "var(--accent)", fmt = (v: number) => String(v) }: { rows: [string, string, number][]; color?: string; fmt?: (v: number) => string }) {
-  const max = Math.max(...rows.map((r) => r[2]), 1);
-  return (
-    <div className="space-y-2">
-      {rows.map(([id, label, v]) => (
-        <div key={id} className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-2 text-[11px]">
-          <span className="truncate text-muted" title={label}>{label}</span>
-          <div className="h-2 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(v / max) * 100}%`, background: color }} /></div>
-          <span className="text-right font-mono tabular-nums text-fg">{fmt(v)}</span>
-        </div>
-      ))}
-      {!rows.length && <p className="text-[11px] text-dim">no data yet</p>}
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--panel-3)" strokeWidth={11} />
+        {arcs.map((a) => (
+          <circle key={a.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={a.color} strokeWidth={11} strokeDasharray={`${Math.max(0, a.len - 3)} ${c - Math.max(0, a.len - 3)}`} strokeDashoffset={-a.offset} />
+        ))}
+      </svg>
+      {center && <div className="absolute inset-0 grid place-items-center text-center"><div>{center}</div></div>}
     </div>
   );
 }
+
