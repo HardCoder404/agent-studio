@@ -29,3 +29,13 @@ async def test_templates_duplicate_and_share(client):
 
     assert (await client.delete(f"/graphs/{gid}/share")).status_code == 204
     assert (await client.get(f"/share/{tok}")).status_code == 404
+
+
+async def test_get_template_spec(client):
+    r = await client.get("/templates/tweet-review")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == "tweet-review"
+    assert body["name"] and len(body["nodes"]) == 6 and body["edges"]
+    assert "issues" in body
+    assert (await client.get("/templates/nope")).status_code == 404

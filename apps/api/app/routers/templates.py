@@ -66,6 +66,18 @@ def list_templates() -> list[dict]:
     ]
 
 
+@router.get("/templates/{slug}")
+def get_template(slug: str) -> dict:
+    """The full spec of one example, for a read-only preview before creating a graph from it."""
+    t = _templates().get(slug)
+    if t is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "template not found")
+    spec = GraphCreate.model_validate(
+        {k: v for k, v in t.items() if k in ("name", "description", "nodes", "edges")}
+    ).to_spec()
+    return _out(spec, id=slug)
+
+
 @router.post("/graphs/from-template/{slug}", status_code=status.HTTP_201_CREATED)
 async def create_from_template(slug: str, db: Db) -> dict:
     t = _templates().get(slug)

@@ -33,6 +33,7 @@ export const api = {
     request<GraphSpec>(`/graphs/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteGraph: (id: string) => request<void>(`/graphs/${id}`, { method: "DELETE" }),
   listTemplates: () => request<TemplateInfo[]>("/templates"),
+  getTemplate: (slug: string) => request<GraphSpec>(`/templates/${slug}`),
   fromTemplate: (slug: string) => request<GraphSpec>(`/graphs/from-template/${slug}`, { method: "POST" }),
   duplicateGraph: (id: string) => request<GraphSpec>(`/graphs/${id}/duplicate`, { method: "POST" }),
   shareGraph: (id: string) => request<{ token: string }>(`/graphs/${id}/share`, { method: "POST" }),
