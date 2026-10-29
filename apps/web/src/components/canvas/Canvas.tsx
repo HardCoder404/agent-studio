@@ -90,6 +90,7 @@ export function Canvas() {
         // router branch is renamed, then updateNodeInternals catches up.
         if (code !== "008") console.warn(`[React Flow ${code}] ${message}`);
       }}
+      proOptions={{ hideAttribution: true }}
       defaultEdgeOptions={{ type: "smoothstep", style: { strokeWidth: 1.5 } }}
       className="bg-canvas"
     >

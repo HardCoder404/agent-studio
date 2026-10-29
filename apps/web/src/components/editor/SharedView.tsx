@@ -42,7 +42,7 @@ export function SharedView() {
       </header>
       <div className="min-h-0 flex-1">
         <ReactFlowProvider>
-          <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.3, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} defaultEdgeOptions={{ type: "smoothstep" }} className="bg-canvas">
+          <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.3, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} proOptions={{ hideAttribution: true }} defaultEdgeOptions={{ type: "smoothstep" }} className="bg-canvas">
             <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="var(--grid)" />
             <Controls position="bottom-left" showInteractive={false} />
           </ReactFlow>
