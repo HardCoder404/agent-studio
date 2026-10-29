@@ -245,30 +245,33 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   ];
   const online = !!health?.groq;
   return (
-    <header className="glass sticky top-0 z-30 border-b border-edge">
-      <div className="mx-auto grid h-14 w-full max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2.5 justify-self-start">
+    <header className="sticky top-0 z-30 px-4 pt-3 md:px-6">
+      <div className="glass mx-auto flex h-14 w-full max-w-[1600px] items-center gap-2 rounded-2xl border border-white/[.08] px-2 shadow-[0_12px_40px_-16px_rgb(0_0_0/0.8)]">
+        <Link href="/" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-white/[.04]">
           <Logo />
-          <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
+          <span className="leading-tight">
+            <span className="block text-[14px] font-semibold tracking-tight">Agent Studio</span>
+            <span className="block text-[10.5px] text-dim">build · run · rewind</span>
+          </span>
         </Link>
-        <nav className="hidden items-center gap-7 md:flex">
-          {items.map(([, label, key]) => (
-            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`relative py-1 text-[13.5px] transition ${view === key ? "font-semibold text-fg" : "font-medium text-muted hover:text-fg"}`}>
-              {label}
-              <span className={`absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent shadow-[0_0_8px] shadow-accent/80 transition ${view === key ? "opacity-100" : "opacity-0"}`} />
+        <span className="mx-1 hidden h-6 w-px bg-white/[.08] md:block" />
+        <nav className="hidden items-center gap-1 md:flex">
+          {items.map(([Icon, label, key]) => (
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[12.5px] font-medium transition ${view === key ? "border-accent/50 bg-accent/10 text-accent" : "border-transparent text-muted hover:border-white/[.08] hover:bg-white/[.04] hover:text-fg"}`}>
+              <Icon size={13} /> {label}
             </Link>
           ))}
         </nav>
-        <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input w-auto py-1 text-xs md:hidden">
+        <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input ml-1 w-auto py-1 text-xs md:hidden">
           {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
         </select>
-        <div className="flex items-center gap-1 justify-self-end">
-          <span className="mr-2 hidden items-center gap-1.5 text-[12px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="hidden items-center gap-1.5 rounded-xl border border-white/[.08] px-2.5 py-1.5 text-[11.5px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
             <span className={`h-1.5 w-1.5 rounded-full ${health ? (online ? "bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" : "bg-amber-400") : "bg-dim"}`} />
             {health ? (online ? "Models online" : "No model key") : "Checking"}
           </span>
-          <button onClick={onImport} className="btn btn-quiet" title="Import a graph JSON exported from the editor"><Upload size={14} /> Import</button>
-          <button onClick={onNew} className="btn btn-primary ml-1"><Plus size={15} strokeWidth={2.5} /> New graph</button>
+          <button onClick={onImport} className="icon-btn h-9 w-9 rounded-xl border border-white/[.08]" title="Import a graph JSON exported from the editor" aria-label="Import graph"><Upload size={15} /></button>
+          <button onClick={onNew} className="btn btn-primary h-9 rounded-xl"><Plus size={15} strokeWidth={2.5} /> New graph</button>
         </div>
       </div>
     </header>
@@ -317,7 +320,7 @@ function RightRail({ runs: allRuns, paused, graphs, health, compact = false }: {
   const runs = allRuns.slice(0, compact ? 5 : fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className={`grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col ${compact ? "xl:sticky xl:top-[4.5rem] xl:self-start" : ""}`}>
+    <aside className={`grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col ${compact ? "xl:sticky xl:top-[5.25rem] xl:self-start" : ""}`}>
       <section className={`card flex min-h-0 flex-col p-4 ${compact ? "" : "xl:flex-1"}`}>
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
         {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
@@ -1176,7 +1179,7 @@ function Guide() {
   return (
     <div className="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]">
       <nav className="hidden lg:block">
-        <div className="sticky top-[4.5rem]">
+        <div className="sticky top-[5.25rem]">
           <div className="eyebrow mb-2 px-2">On this page</div>
           <ul className="space-y-0.5 border-l border-edge text-[12.5px]">
             {toc.map(([id, label]) => (
