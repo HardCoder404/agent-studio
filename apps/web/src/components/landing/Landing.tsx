@@ -180,7 +180,9 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
     }
   };
   const onImport = () => fileRef.current?.click();
-  const isHome = usePathname() === "/";
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const isDocs = pathname === "/guide";
 
   return (
     <LandingCtx.Provider value={{ graphs, templates, runs, health, refresh, create, fromTemplate, onImport }}>
@@ -199,7 +201,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
               {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
               {children}
             </div>
-            <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
+            <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} compact={isDocs} />
           </div>
         )}
         <FreeTierToast />
@@ -307,15 +309,15 @@ function FreeTierToast() {
 
 /* ---------------- right rail (every view) ---------------- */
 
-function RightRail({ runs: allRuns, paused, graphs, health }: { runs: RunInfo[]; paused: RunInfo[]; graphs: GraphSummary[]; health: Health }) {
+function RightRail({ runs: allRuns, paused, graphs, health, compact = false }: { runs: RunInfo[]; paused: RunInfo[]; graphs: GraphSummary[]; health: Health; compact?: boolean }) {
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
   const listRef = useRef<HTMLUListElement>(null);
   const fit = useFitList(listRef, 30);
-  const runs = allRuns.slice(0, fit);
+  const runs = allRuns.slice(0, compact ? 5 : fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className="grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col">
-      <section className="card flex min-h-0 flex-col p-4 xl:flex-1">
+    <aside className={`grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col ${compact ? "xl:sticky xl:top-[4.5rem] xl:self-start" : ""}`}>
+      <section className={`card flex min-h-0 flex-col p-4 ${compact ? "" : "xl:flex-1"}`}>
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
         {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
         <ul ref={listRef} className="-mx-2 min-h-[9.5rem] flex-1 space-y-0.5 overflow-hidden xl:min-h-0">
