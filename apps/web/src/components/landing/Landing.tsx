@@ -261,9 +261,9 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
           <Logo size="sm" />
           <span className="text-[14px] font-semibold tracking-tight">Agent Studio</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-0.5 md:flex">
           {items.map(([Icon, label, key]) => (
-            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent/10 text-accent ring-1 ring-accent/30" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}>
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent/10 text-accent ring-1 ring-accent/30" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}>
               <Icon size={13} /> {label}
             </Link>
           ))}
@@ -272,12 +272,12 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
           {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
         </select>
         <div className="flex items-center gap-3 justify-self-end">
-          <span className="hidden items-center gap-1.5 text-[11.5px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
+          <span className="hidden items-center gap-1.5 whitespace-nowrap text-[11.5px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
             <span className={`h-1.5 w-1.5 rounded-full ${health ? (online ? "bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" : "bg-amber-400") : "bg-dim"}`} />
-            {health ? (online ? "Models online" : "No model key") : "Checking"}
+            <span className={scrolled ? "inline" : "hidden 2xl:inline"}>{health ? (online ? "Models online" : "No model key") : "Checking"}</span>
           </span>
           <span className="hidden h-4 w-px bg-edge-2 sm:block" />
-          <button onClick={onImport} className="flex items-center gap-1.5 text-[12.5px] text-muted transition hover:text-fg" title="Import a graph JSON exported from the editor"><Upload size={13} /> Import</button>
+          <button onClick={onImport} className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-muted transition hover:text-fg" title="Import a graph JSON exported from the editor"><Upload size={13} /> Import</button>
           <button onClick={onNew} className="btn btn-sm btn-primary"><Plus size={14} strokeWidth={2.5} /> New graph</button>
         </div>
       </div>
