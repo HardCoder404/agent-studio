@@ -559,8 +559,8 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
         {/* product window */}
         <div className="relative mx-auto max-w-[1100px] px-6 pb-12">
           <div aria-hidden className="pointer-events-none absolute inset-x-16 -top-6 h-40 rounded-full bg-accent/20 blur-3xl" />
-          <div className="card relative overflow-hidden shadow-[0_40px_120px_-40px_rgb(0_0_0/0.95)] ring-1 ring-accent/25">
-            <div className="flex items-center gap-2 border-b border-edge bg-panel-2/80 px-3 py-2">
+          <div className="relative overflow-hidden rounded-2xl border border-white/[.08] bg-panel/40 shadow-[0_40px_120px_-40px_rgb(0_0_0/0.9)] backdrop-blur-sm">
+            <div className="flex items-center gap-2 border-b border-white/[.06] bg-white/[.02] px-3 py-2">
               <span className="flex gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" /></span>
               <span className="ml-3 flex items-center gap-2 rounded-md border border-edge-2 bg-panel px-2 py-0.5 font-mono text-[11px] text-muted"><Logo size="sm" /> {heroSpec?.name ?? "Tweet writer with human review"}</span>
               <span className="ml-auto flex items-center gap-2">
@@ -568,7 +568,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
                 <span className="pill border border-accent/30 bg-accent/10 text-accent"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /> replaying a run</span>
               </span>
             </div>
-            <div className="relative h-[460px]">
+            <div className="hero-canvas relative h-[460px]">
               {heroSpec ? <TemplatePreview spec={heroSpec} simulate /> : <div className="grid h-full place-items-center px-6"><HeroFlow /></div>}
               {/* floating product moments */}
               <div className="pointer-events-none absolute top-5 left-5 w-60 rounded-xl border border-edge-2 bg-panel/95 p-3 text-[11px] shadow-xl backdrop-blur">
@@ -586,7 +586,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
                 <div className="mt-2 flex gap-1.5"><span className="btn btn-sm btn-ghost">Yes</span><span className="btn btn-sm btn-ghost">No</span><span className="input ml-auto h-7 w-24 py-0 text-[10px] text-dim">or type…</span></div>
               </div>
             </div>
-            <div className="flex items-center gap-3 border-t border-edge bg-panel-2/80 px-3 py-2 text-[11px] text-muted">
+            <div className="flex items-center gap-3 border-t border-white/[.06] bg-white/[.02] px-3 py-2 text-[11px] text-muted">
               {[["Timeline", true], ["Console", false], ["Runs", false], ["Compare", false], ["Evals", false], ["Cost", false], ["Tools", false]].map(([t, on]) => (
                 <span key={String(t)} className={on ? "border-b-2 border-accent pb-0.5 text-fg" : ""}>{t}</span>
               ))}
@@ -783,7 +783,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
       {/* footer */}
       <footer className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-6 text-[12px] text-dim">
         <span className="flex items-center gap-2 text-fg"><Logo size="sm" /> Agent Studio</span>
-        <span>Next.js · React Flow · FastAPI · LangGraph · Postgres</span>
+        <span>Build, run and rewind multi-agent workflows on one canvas.</span>
         <span className="ml-auto flex items-center gap-3"><span><kbd className="kbd">⌘K</kbd> commands</span><span><kbd className="kbd">⌘↵</kbd> run</span><Link href="/guide" className="hover:text-fg">How it works</Link></span>
       </footer>
     </div>

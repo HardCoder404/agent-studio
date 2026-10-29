@@ -361,3 +361,13 @@ body {
 .toast-in {
   animation: toast-in 0.35s ease-out both;
 }
+
+/* landing hero: let the page background and grid show through the canvas */
+.hero-canvas .react-flow,
+.hero-canvas .react-flow__pane,
+.hero-canvas .react-flow__renderer {
+  background: transparent !important;
+}
+.hero-canvas .react-flow__background {
+  opacity: 0;
+}
