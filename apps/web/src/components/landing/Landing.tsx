@@ -197,7 +197,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
           </>
         ) : (
           <div className="mx-auto grid w-full max-w-[1600px] gap-4 px-4 py-4 md:px-6 xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
-            <div className="flex min-h-[calc(100vh-7.3rem)] min-w-0 flex-col gap-4">
+            <div className="flex min-h-[calc(100vh-5.6rem)] min-w-0 flex-col gap-4">
               {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
               {children}
             </div>
@@ -244,7 +244,6 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
     [BookOpen, "How it works", "guide"],
   ];
   const online = !!health?.groq;
-  const current = items.find(([, , k]) => k === view)?.[1] ?? "Overview";
   // at the top: a fixed-width centred bar; once scrolled: eases out to the full content width
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -257,13 +256,22 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
       <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-accent to-transparent" />
-      <div className={`${width} flex h-12 items-center gap-3 px-4 md:px-6`}>
-        <Link href="/" className="flex items-center gap-2.5">
+      <div className={`${width} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4 md:px-6`}>
+        <Link href="/" className="flex items-center gap-2.5 justify-self-start">
           <Logo size="sm" />
           <span className="text-[14px] font-semibold tracking-tight">Agent Studio</span>
         </Link>
-        <span className="hidden font-mono text-[11px] text-dim md:inline">/ {current.toLowerCase()}</span>
-        <div className="ml-auto flex items-center gap-3">
+        <nav className="hidden items-center gap-1 md:flex">
+          {items.map(([Icon, label, key]) => (
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent/10 text-accent ring-1 ring-accent/30" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}>
+              <Icon size={13} /> {label}
+            </Link>
+          ))}
+        </nav>
+        <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input w-auto py-1 text-xs md:hidden">
+          {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <div className="flex items-center gap-3 justify-self-end">
           <span className="hidden items-center gap-1.5 text-[11.5px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
             <span className={`h-1.5 w-1.5 rounded-full ${health ? (online ? "bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" : "bg-amber-400") : "bg-dim"}`} />
             {health ? (online ? "Models online" : "No model key") : "Checking"}
@@ -273,13 +281,6 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
           <button onClick={onNew} className="btn btn-sm btn-primary"><Plus size={14} strokeWidth={2.5} /> New graph</button>
         </div>
       </div>
-      <nav className={`${width} flex items-stretch justify-center gap-1 overflow-x-auto px-4 md:px-6`}>
-        {items.map(([Icon, label, key]) => (
-          <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pt-1.5 pb-2 text-[12.5px] font-medium transition ${view === key ? "border-accent text-fg" : "border-transparent text-muted hover:border-edge-2 hover:text-fg"}`}>
-            <Icon size={13} className={view === key ? "text-accent" : ""} /> {label}
-          </Link>
-        ))}
-      </nav>
     </header>
   );
 }
@@ -326,7 +327,7 @@ function RightRail({ runs: allRuns, paused, graphs, health, compact = false }: {
   const runs = allRuns.slice(0, compact ? 5 : fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className={`grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col ${compact ? "xl:sticky xl:top-[6.25rem] xl:self-start" : ""}`}>
+    <aside className={`grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col ${compact ? "xl:sticky xl:top-[4.75rem] xl:self-start" : ""}`}>
       <section className={`card flex min-h-0 flex-col p-4 ${compact ? "" : "xl:flex-1"}`}>
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
         {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
@@ -1185,7 +1186,7 @@ function Guide() {
   return (
     <div className="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]">
       <nav className="hidden lg:block">
-        <div className="sticky top-[6.25rem]">
+        <div className="sticky top-[4.75rem]">
           <div className="eyebrow mb-2 px-2">On this page</div>
           <ul className="space-y-0.5 border-l border-edge text-[12.5px]">
             {toc.map(([id, label]) => (
