@@ -186,7 +186,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 
   return (
     <LandingCtx.Provider value={{ graphs, templates, runs, health, refresh, create, fromTemplate, onImport }}>
-      <main className="relative min-h-full overflow-x-hidden">
+      <main className="relative min-h-full overflow-x-clip">
         <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
         <AppBar health={health} onImport={onImport} onNew={create} />
 
@@ -1156,6 +1156,23 @@ function Guide() {
   const toc: [string, string][] = [["loops", "The four loops"], ["nodes", "Node types"], ["shortcuts", "Shortcuts"], ["glossary", "Glossary"], ["faq", "Common questions"], ["hood", "Under the hood"]];
   const shortcuts: [string, string][] = [["⌘K", "Command palette: add nodes, run, fit view, undo, delete."], ["⌘↵", "Run the graph. A dialog asks for the input variables no node produces."], ["⌘Z / ⇧⌘Z", "Undo and redo any canvas edit, including config changes."], ["⌫", "Delete the selected node or edge."], ["drag from a port", "Connect nodes. Routers have one port per branch along the bottom edge."], ["click a timeline bar", "Select that node and show the step's input, output and usage."]];
   const H = ({ id, children }: { id: string; children: React.ReactNode }) => <h2 id={id} className="scroll-mt-20 text-[20px] font-semibold tracking-[-0.02em]">{children}</h2>;
+  // scroll-spy: the heading nearest the top of the viewport is the active one
+  const [active, setActive] = useState(toc[0][0]);
+  useEffect(() => {
+    const ids = toc.map(([id]) => id);
+    const onScroll = () => {
+      let cur = ids[0];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= 120) cur = id;
+      }
+      setActive(cur);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toc is a constant list
+  }, []);
   return (
     <div className="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]">
       <nav className="hidden lg:block">
@@ -1163,7 +1180,7 @@ function Guide() {
           <div className="eyebrow mb-2 px-2">On this page</div>
           <ul className="space-y-0.5 border-l border-edge text-[12.5px]">
             {toc.map(([id, label]) => (
-              <li key={id}><a href={`#${id}`} className="-ml-px block border-l border-transparent px-3 py-1 text-muted transition hover:border-accent hover:text-fg">{label}</a></li>
+              <li key={id}><a href={`#${id}`} className={`-ml-px block border-l px-3 py-1 transition hover:text-fg ${active === id ? "border-accent text-fg" : "border-transparent text-muted hover:border-edge-2"}`}>{label}</a></li>
             ))}
           </ul>
           <Link href="/templates" className="btn btn-sm btn-ghost mt-4 w-full"><Sparkles size={13} className="text-accent" /> Try a template</Link>
