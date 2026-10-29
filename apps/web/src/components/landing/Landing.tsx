@@ -187,7 +187,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
         <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
         <AppBar health={health} onImport={onImport} onNew={create} />
 
-        <div className="mx-auto w-full max-w-[1680px] px-4 py-4 md:px-6">
+        <div className="mx-auto w-full max-w-[1360px] px-4 py-4 md:px-6">
           <div className="flex min-h-[calc(100vh-5.5rem)] min-w-0 flex-col gap-4">
             {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
             {children}
@@ -236,7 +236,7 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   const online = !!health?.groq;
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
-      <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center gap-3 px-4 md:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-[1360px] items-center gap-3 px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2.5 pr-2">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
