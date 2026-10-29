@@ -247,14 +247,15 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
       <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2.5 pr-2">
+        <Link href="/" className="flex items-center gap-2.5 pr-3">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
+          <span className="rounded-md border border-edge-2 bg-panel-2 px-1.5 py-0.5 font-mono text-[9.5px] tracking-wider text-dim uppercase">beta</span>
         </Link>
-        <nav className="ml-2 hidden h-full items-stretch md:flex">
+        <nav className="ml-2 hidden items-center gap-0.5 rounded-xl border border-edge-2 bg-panel-2/70 p-1 md:flex">
           {items.map(([Icon, label, key]) => (
-            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`tab-underline flex items-center gap-1.5 px-3 text-[13px] font-medium transition ${view === key ? "text-fg" : "text-muted hover:text-fg"}`}>
-              <Icon size={14} className={view === key ? "text-accent" : ""} /> {label}
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent text-accent-ink shadow-[0_0_0_1px_rgb(197_241_53/0.35)]" : "text-muted hover:bg-panel-3 hover:text-fg"}`}>
+              <Icon size={13} strokeWidth={view === key ? 2.4 : 2} /> {label}
             </Link>
           ))}
         </nav>
@@ -585,7 +586,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
               <div className="pointer-events-none absolute right-5 bottom-5 w-64 rounded-xl border border-pink-400/40 bg-panel/95 p-3 text-[11px] shadow-xl backdrop-blur">
                 <div className="mb-1 flex items-center gap-1.5 font-semibold text-fg"><UserRound size={11} className="text-pink-300" /> Human review is waiting for you</div>
                 <div className="text-muted">Approve this draft? (yes/no)</div>
-                <div className="mt-2 flex gap-1.5"><span className="btn btn-sm btn-ghost">Yes</span><span className="btn btn-sm btn-ghost">No</span><span className="input ml-auto h-7 w-24 py-0 text-[10px] text-dim">or type…</span></div>
+                <div className="mt-2 flex gap-1.5"><span className="btn btn-sm btn-ghost">Yes</span><span className="btn btn-sm btn-ghost">No</span><span className="input ml-auto flex h-7 w-24 items-center py-0 text-[10px] text-dim">or type…</span></div>
               </div>
             </div>
             <div className="flex items-center gap-3 border-t border-white/[.06] bg-white/[.02] px-3 py-2 text-[11px] text-muted">
