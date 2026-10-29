@@ -245,10 +245,19 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   ];
   const online = !!health?.groq;
   const current = items.find(([, , k]) => k === view)?.[1] ?? "Overview";
+  // at the top: a fixed-width centred bar; once scrolled: eases out to the full content width
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const width = `mx-auto w-full transition-[max-width] duration-500 ease-out ${scrolled ? "max-w-[1600px]" : "max-w-[1100px]"}`;
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
       <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-accent to-transparent" />
-      <div className="mx-auto flex h-12 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
+      <div className={`${width} flex h-12 items-center gap-3 px-4 md:px-6`}>
         <Link href="/" className="flex items-center gap-2.5">
           <Logo size="sm" />
           <span className="text-[14px] font-semibold tracking-tight">Agent Studio</span>
@@ -264,7 +273,7 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
           <button onClick={onNew} className="btn btn-sm btn-primary"><Plus size={14} strokeWidth={2.5} /> New graph</button>
         </div>
       </div>
-      <nav className="mx-auto flex w-full max-w-[1600px] items-stretch gap-1 overflow-x-auto px-4 md:px-6">
+      <nav className={`${width} flex items-stretch justify-center gap-1 overflow-x-auto px-4 md:px-6`}>
         {items.map(([Icon, label, key]) => (
           <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pt-1.5 pb-2 text-[12.5px] font-medium transition ${view === key ? "border-accent text-fg" : "border-transparent text-muted hover:border-edge-2 hover:text-fg"}`}>
             <Icon size={13} className={view === key ? "text-accent" : ""} /> {label}
