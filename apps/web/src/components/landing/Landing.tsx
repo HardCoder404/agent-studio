@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BarChart3, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -180,6 +180,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
     }
   };
   const onImport = () => fileRef.current?.click();
+  const isHome = usePathname() === "/";
 
   return (
     <LandingCtx.Provider value={{ graphs, templates, runs, health, refresh, create, fromTemplate, onImport }}>
@@ -187,13 +188,20 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
         <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
         <AppBar health={health} onImport={onImport} onNew={create} />
 
-        <div className="mx-auto grid w-full max-w-[1600px] gap-4 px-4 py-4 md:px-6 xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
-          <div className="flex min-h-[calc(100vh-5.5rem)] min-w-0 flex-col gap-4">
-            {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
+        {isHome ? (
+          <>
+            {error && <div className="mx-auto mt-4 max-w-[1240px] rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
             {children}
+          </>
+        ) : (
+          <div className="mx-auto grid w-full max-w-[1600px] gap-4 px-4 py-4 md:px-6 xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
+            <div className="flex min-h-[calc(100vh-5.5rem)] min-w-0 flex-col gap-4">
+              {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
+              {children}
+            </div>
+            <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
           </div>
-          <RightRail runs={runs} paused={runs.filter((r) => r.status === "paused").slice(0, 5)} graphs={graphs ?? []} health={health} />
-        </div>
+        )}
         <FreeTierToast />
       </main>
     </LandingCtx.Provider>
@@ -407,10 +415,8 @@ function ModelsCard() {
 
 function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }: { runs: RunInfo[]; graphs: GraphSummary[] | null; templates: TemplateInfo[]; fromTemplate: (slug: string) => void; onNew: () => void }) {
   const graphs = graphsOrNull ?? [];
-  const healthy = graphs.filter((g) => g.issues === 0).length;
   const nameOf = Object.fromEntries(graphs.map((g) => [g.id, g.name]));
-  const recent = [...graphs].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 5);
-  const graphsWithRuns = new Set(runs.map((r) => r.graph_id)).size;
+  const healthy = graphs.filter((g) => g.issues === 0).length;
   const byStatus: Record<string, number> = {};
   for (const r of runs) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
   const done = byStatus.done ?? 0, finished = done + (byStatus.error ?? 0) + (byStatus.cancelled ?? 0);
@@ -418,19 +424,26 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
   const calls = runs.reduce((a, r) => a + (r.usage?.llm_calls ?? 0), 0);
   const durations = runs.filter((r) => r.duration_ms != null && r.status === "done").map((r) => r.duration_ms as number).sort((a, b) => a - b);
   const p50 = durations.length ? durations[Math.floor(durations.length / 2)] : null;
-  const perGraph: Record<string, number> = {};
-  for (const r of runs) perGraph[r.graph_id] = (perGraph[r.graph_id] ?? 0) + 1;
-  const topGraphs = Object.entries(perGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => [id, nameOf[id] ?? "deleted graph", n] as [string, string, number]);
-  const costGraph: Record<string, number> = {};
-  for (const r of runs) costGraph[r.graph_id] = (costGraph[r.graph_id] ?? 0) + (r.usage?.cost_usd ?? 0);
-  const topCost = Object.entries(costGraph).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => [id, nameOf[id] ?? "deleted graph", v] as [string, string, number]);
+  const paused = runs.filter((r) => r.status === "paused");
+  const statusOrder = ["done", "running", "paused", "queued", "cancelled", "error"];
+  const models = useModels().filter((m) => m.available);
+
+  // hero canvas: the smallest example that shows every node type
+  const [heroSpec, setHeroSpec] = useState<GraphSpec | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.getTemplate("tweet-review").then((sp) => alive && setHeroSpec(sp)).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // "now" is only known after mount: using the clock during server render would break hydration
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const id = requestAnimationFrame(() => setNow(Date.now()));
     return () => cancelAnimationFrame(id);
   }, []);
-  // last 7 days in 4-hour buckets, aligned to local midnight six days ago
   const BUCKET = 4 * 3600000, N = 42;
   const dayStart = now != null ? new Date(now) : null;
   dayStart?.setHours(0, 0, 0, 0);
@@ -442,220 +455,239 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
       if (i >= 0 && i < N) { series[i].runs += 1; series[i].cost += r.usage?.cost_usd ?? 0; }
     }
   }
-  const perGraphStatus: Record<string, Record<string, number>> = {};
-  for (const r of runs) { (perGraphStatus[r.graph_id] ??= {})[r.status] = (perGraphStatus[r.graph_id]?.[r.status] ?? 0) + 1; }
-  const tokIn = runs.reduce((a, r) => a + (r.usage?.input_tokens ?? 0), 0);
-  const tokOut = runs.reduce((a, r) => a + (r.usage?.output_tokens ?? 0), 0);
-  const waiting = runs.filter((r) => r.status === "paused").length;
-  const statusOrder = ["done", "running", "paused", "queued", "cancelled", "error"];
   const runs7 = series.reduce((a, b) => a + b.runs, 0);
-  const cost7 = series.reduce((a, b) => a + b.cost, 0);
-  const kpis: [LucideIcon, string, string, string][] = [
-    [LayoutGrid, "Graphs", String(graphs.length), `${healthy} ready`],
-    [Activity, "Runs", String(runs.length), `${byStatus.paused ?? 0} waiting on a human`],
-    [ShieldCheck, "Success rate", finished ? `${Math.round((done / finished) * 100)}%` : "–", `${byStatus.error ?? 0} errors`],
-    [Coins, "Spend", `$${cost.toFixed(4)}`, `${calls} model calls · p50 ${p50 != null ? (p50 / 1000).toFixed(1) + " s" : "–"}`],
+
+  const stats: [string, string, string][] = [
+    [graphsOrNull ? String(graphs.length) : "–", "graphs", `${healthy} ready to run`],
+    [String(runs.length), "runs", `${runs7} in the last 7 days`],
+    [finished ? `${Math.round((done / finished) * 100)}%` : "–", "success rate", `${byStatus.error ?? 0} errors · ${paused.length} waiting on a human`],
+    [`$${cost.toFixed(4)}`, "total spend", `${calls} model calls · p50 ${p50 != null ? (p50 / 1000).toFixed(1) + " s" : "–"}`],
   ];
+
+  const features: [LucideIcon, string, string, React.ReactNode][] = [
+    [
+      Activity,
+      "Rewind any run, fork from any step",
+      "Every node completion is a checkpoint. Scrub back, see what changed, edit a variable and launch a new run from that point. The original stays untouched; compare the two side by side.",
+      <ol key="tt" className="divide-y divide-edge rounded-xl border border-edge bg-panel-2/60 text-[11px]">
+        {[["after Write draft", "paused", false], ["edited by hand", "fork", true], ["after Rewrite", "done", false]].map(([label, tag, hot]) => (
+          <li key={String(label)} className={`flex items-center gap-2 px-3 py-1.5 ${hot ? "text-accent" : "text-muted"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${hot ? "bg-accent" : "bg-dim"}`} />
+            <span className="flex-1 font-mono">{label}</span>
+            <span className={`pill ${hot ? "bg-accent/15 text-accent" : "bg-panel-3 text-dim"}`}>{tag}</span>
+          </li>
+        ))}
+      </ol>,
+    ],
+    [
+      ShieldCheck,
+      "Evals that point at the node",
+      "Build a dataset, pick scorers, run it. Failures light up the node that wrote the bad value. Sweep candidate models for one node and apply the cheapest that still passes.",
+      <div key="ev" className="space-y-1.5 rounded-xl border border-edge bg-panel-2/60 p-3 text-[11px]">
+        {(models.length ? models.slice(0, 3) : [{ id: "groq/openai/gpt-oss-20b", tier: "small", input_per_m: 0.075 }, { id: "groq/qwen/qwen3.8-27b", tier: "medium", input_per_m: 0.29 }, { id: "groq/openai/gpt-oss-120b", tier: "large", input_per_m: 0.15 }]).map((m, i) => (
+          <div key={m.id} className="flex items-center gap-2">
+            <span className="w-24 truncate font-mono text-muted">{m.id.split("/").slice(-1)[0]}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel-3"><div className={`h-full rounded-full ${i === 0 ? "bg-accent" : "bg-emerald-400/60"}`} style={{ width: `${[67, 67, 100][i]}%` }} /></div>
+            <span className="w-8 text-right font-mono text-fg">{[67, 67, 100][i]}%</span>
+            <span className={`pill ${i === 0 ? "bg-accent/15 text-accent" : "bg-panel-3 text-dim"}`}>{i === 0 ? "cheapest" : m.tier}</span>
+          </div>
+        ))}
+      </div>,
+    ],
+    [
+      UserRound,
+      "Humans and tools in the loop",
+      "Human nodes pause the run with a card that shows exactly what to approve. Tool nodes call built-ins or any MCP server you connect. Code nodes run Python in a Docker sandbox.",
+      <div key="hl" className="rounded-xl border border-pink-400/30 bg-panel-2/60 p-3 text-[11px]">
+        <div className="mb-1.5 flex items-center gap-1.5 font-semibold text-fg"><UserRound size={11} className="text-pink-300" /> Human review is waiting for you</div>
+        <div className="text-muted">Approve this draft? (yes/no)</div>
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className="btn btn-sm btn-ghost pointer-events-none">Yes</span>
+          <span className="btn btn-sm btn-ghost pointer-events-none">No</span>
+          <span className="ml-auto flex gap-1">{["http_get", "mcp:demo:add"].map((t) => <span key={t} className="rounded-md border border-amber-400/20 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">{t}</span>)}</span>
+        </div>
+      </div>,
+    ],
+  ];
+
   return (
-    <>
-      <section className="card relative overflow-hidden">
-        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(80%_120%_at_15%_0%,black,transparent)]" />
-        <div aria-hidden className="pointer-events-none absolute -top-32 -left-24 h-96 w-96 rounded-full bg-accent/15 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 -bottom-32 h-80 w-80 rounded-full bg-sky-400/8 blur-3xl" />
-        <div className="relative grid gap-6 p-6 md:p-7 xl:grid-cols-[1.15fr_1fr]">
-          <div className="flex min-w-0 flex-col">
+    <div className="min-w-0">
+      {/* hero */}
+      <section className="relative overflow-hidden border-b border-edge">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(70%_80%_at_30%_0%,black,transparent)]" />
+        <div aria-hidden className="pointer-events-none absolute -top-40 left-1/4 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-40 top-20 h-[26rem] w-[26rem] rounded-full bg-sky-400/10 blur-3xl" />
+        <div className="relative mx-auto grid max-w-[1240px] gap-10 px-6 pt-14 pb-12 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-20 lg:pb-16">
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted uppercase"><Logo size="sm" /> Agent Studio</span>
-              <span className="pill border border-accent/30 bg-accent/10 text-accent"><Zap size={11} /> Time-travel debugging</span>
-              <span className="pill border border-edge-2 bg-panel-2 text-muted">LangGraph · Postgres · MCP</span>
+              <span className="pill border border-accent/30 bg-accent/10 text-accent"><Zap size={11} /> Time-travel debugging for agent workflows</span>
             </div>
-            <h1 className="mt-5 text-[36px] leading-[1.02] font-semibold tracking-[-0.03em] md:text-[46px]">
+            <h1 className="mt-5 text-[44px] leading-[0.98] font-semibold tracking-[-0.035em] md:text-[60px]">
               Build agents on a canvas.
               <br />
               Run, <span className="text-accent">rewind</span>, fork.
             </h1>
-            <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-muted">
+            <p className="mt-5 max-w-xl text-[15.5px] leading-relaxed text-muted">
               Compose multi-agent workflows visually, watch tokens stream through every node, then scrub back to any checkpoint, edit the state and fork a new run from that step. Evals, model sweeps and MCP tools are built in.
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <button onClick={onNew} className="btn btn-primary"><Plus size={15} strokeWidth={2.5} /> New graph</button>
-              <Link href="/templates" className="btn btn-ghost"><Sparkles size={14} className="text-accent" /> Browse templates</Link>
-              <span className="ml-1 hidden items-center gap-1.5 text-[11px] text-dim sm:flex"><kbd className="kbd">⌘K</kbd> commands · <kbd className="kbd">⌘↵</kbd> run</span>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <button onClick={onNew} className="btn btn-primary h-10 px-5 text-[14px]"><Plus size={16} strokeWidth={2.5} /> New graph</button>
+              <Link href="/templates" className="btn btn-ghost h-10 px-5 text-[14px]"><Sparkles size={15} className="text-accent" /> Browse templates</Link>
+              <Link href="/guide" className="flex items-center gap-1 text-[13px] text-muted transition hover:text-fg">How it works <ArrowRight size={14} /></Link>
             </div>
-            <HeroFlow />
-          </div>
-          <div className="card-2 flex min-w-0 flex-col p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 text-sm font-semibold"><TrendingUp size={14} className="text-accent" /> Runs, last 7 days</div>
-              <span className="font-mono text-[11px] text-dim">{runs7} runs · ${cost7.toFixed(5)}</span>
-            </div>
-            {dayStart ? <RunsLine series={series} /> : <div className="mt-3 min-h-[150px] flex-1 animate-pulse rounded-lg bg-panel-3/40" />}
-            <div className="mt-3 grid grid-cols-3 divide-x divide-edge-2 border-t border-edge-2 pt-3 text-xs">
-              {[
-                ["graphs", graphsOrNull ? graphs.length : "–", ""],
-                ["ready to run", graphsOrNull ? healthy : "–", "text-emerald-300"],
-                ["templates", templates.length, ""],
-              ].map(([label, value, cls], i) => (
-                <div key={String(label)} className={i ? "px-3" : "pr-3"}>
-                  <div className={`text-lg font-semibold tabular-nums leading-none ${cls}`}>{value}</div>
-                  <div className="mt-1 text-[10.5px] text-dim">{label}</div>
-                </div>
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-dim">
+              {["Free tiers end to end", "LangGraph checkpoints", "MCP tools", "Docker sandbox"].map((t) => (
+                <span key={t} className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-accent" /> {t}</span>
               ))}
             </div>
+          </div>
+
+          {/* product window */}
+          <div className="relative min-w-0">
+            <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-[28px] bg-accent/10 blur-2xl" />
+            <div className="card relative overflow-hidden shadow-[0_30px_80px_-30px_rgb(0_0_0/0.9)] ring-1 ring-accent/20">
+              <div className="flex items-center gap-2 border-b border-edge bg-panel-2/70 px-3 py-2">
+                <span className="flex gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" /></span>
+                <span className="ml-2 truncate font-mono text-[11px] text-muted">{heroSpec?.name ?? "Tweet writer with human review"}</span>
+                <span className="pill ml-auto border border-accent/30 bg-accent/10 text-accent"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /> live canvas</span>
+              </div>
+              <div className="h-[380px]">
+                {heroSpec ? <TemplatePreview spec={heroSpec} /> : <div className="grid h-full place-items-center px-6"><HeroFlow /></div>}
+              </div>
+              <div className="flex items-center gap-3 border-t border-edge bg-panel-2/70 px-3 py-2 text-[11px] text-muted">
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> model</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-pink-400" /> human gate</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-violet-400" /> router</span>
+                <Link href="/templates" className="ml-auto flex items-center gap-1 text-accent hover:underline">Open in templates <ArrowRight size={12} /></Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* stats strip */}
+        <div className="relative border-t border-edge bg-panel/50 backdrop-blur">
+          <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-edge px-6 md:grid-cols-4">
+            {stats.map(([value, label, sub]) => (
+              <div key={label} className="px-5 py-5 first:pl-0">
+                <div className="text-[30px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
+                <div className="mt-1.5 text-[12px] font-medium text-fg/80">{label}</div>
+                <div className="text-[11px] text-dim">{sub}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <div className="card grid grid-cols-2 divide-y divide-edge md:grid-cols-4 md:divide-x md:divide-y-0">
-        {kpis.map(([Icon, label, value, sub]) => (
-          <div key={label} className="p-4">
-            <div className="eyebrow flex items-center gap-1.5"><Icon size={12} className="text-accent" /> {label}</div>
-            <div className="mt-2 text-[26px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
-            <div className="mt-1.5 text-[11px] text-muted">{sub}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* run outcomes */}
-        <div className="card flex flex-col p-4">
-          <CardHead title="Run outcomes" hint={`${runs.length} runs`} />
-          <div className="flex items-center gap-5">
-            <Donut
-              parts={statusOrder.filter((k) => byStatus[k]).map((k) => [k, byStatus[k], statusColors[k] ?? "#71717a"])}
-              size={124}
-              center={
-                <>
-                  <div className="text-[22px] font-semibold tabular-nums leading-none tracking-tight">{finished ? `${Math.round((done / finished) * 100)}%` : "–"}</div>
-                  <div className="mt-1 text-[9.5px] font-medium tracking-wider text-dim uppercase">success</div>
-                </>
-              }
-            />
-            <ul className="min-w-0 flex-1 space-y-2 text-[11px]">
-              {statusOrder.filter((k) => byStatus[k]).map((k) => (
-                <li key={k}>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} />
-                    <span className="flex-1 capitalize text-muted">{k}</span>
-                    <span className="font-mono tabular-nums text-fg">{byStatus[k]}</span>
-                    <span className="w-8 text-right font-mono text-dim">{Math.round((byStatus[k] / (runs.length || 1)) * 100)}%</span>
-                  </div>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(byStatus[k] / (runs.length || 1)) * 100}%`, background: statusColors[k] ?? "#71717a" }} /></div>
-                </li>
-              ))}
-              {!runs.length && <li className="text-dim">no runs yet</li>}
-            </ul>
-          </div>
-          <div className="mt-auto grid grid-cols-3 divide-x divide-edge border-t border-edge pt-3 text-[11px]">
-            <div className="pr-3"><div className="font-mono text-[13px] text-fg">{p50 != null ? `${(p50 / 1000).toFixed(1)} s` : "–"}</div><div className="text-dim">median run</div></div>
-            <div className="px-3"><div className="font-mono text-[13px] text-fg">{calls}</div><div className="text-dim">model calls</div></div>
-            <div className="pl-3"><div className={`font-mono text-[13px] ${waiting ? "text-pink-300" : "text-fg"}`}>{waiting}</div><div className="text-dim">waiting on you</div></div>
+      {/* features */}
+      <section className="border-b border-edge">
+        <div className="mx-auto max-w-[1240px] px-6 py-14">
+          <div className="eyebrow">Why Agent Studio</div>
+          <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.02em]">Debug agents like code, not like black boxes.</h2>
+          <p className="mt-2 max-w-2xl text-[14px] text-muted">Console, timeline, cost and traces all derive from one event log, so what you see on the canvas is what actually ran.</p>
+          <div className="mt-10 grid gap-8 md:grid-cols-3">
+            {features.map(([Icon, title, body, visual]) => (
+              <div key={title} className="flex flex-col">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20"><Icon size={18} /></span>
+                <h3 className="mt-4 text-[17px] font-semibold tracking-tight">{title}</h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-muted">{body}</p>
+                <div className="mt-5">{visual}</div>
+              </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* runs per graph */}
-        <div className="card flex flex-col p-4">
-          <CardHead icon={BarChart3} title="Runs per graph" hint="top 5 · by status" />
-          <ol className="space-y-2.5">
-            {topGraphs.map(([id, label, n], i) => {
-              const st = perGraphStatus[id] ?? {};
-              return (
-                <li key={id}>
-                  <div className="flex items-center gap-2 text-[11px]">
-                    <span className="grid h-4.5 w-4.5 shrink-0 place-items-center rounded-md bg-panel-3 font-mono text-[9.5px] text-dim">{i + 1}</span>
-                    <Link href={`/graphs/${id}`} className="min-w-0 flex-1 truncate text-fg hover:text-accent" title={label}>{label}</Link>
-                    <span className="font-mono tabular-nums text-fg">{n}</span>
-                    <span className="w-8 text-right font-mono text-dim">{Math.round((n / (runs.length || 1)) * 100)}%</span>
-                  </div>
-                  <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-panel-3" style={{ width: `${(n / Math.max(1, topGraphs[0]?.[2] ?? 1)) * 100}%` }} title={statusOrder.filter((k) => st[k]).map((k) => `${k} ${st[k]}`).join(" · ")}>
-                    {statusOrder.filter((k) => st[k]).map((k) => (
-                      <div key={k} className="h-full" style={{ width: `${(st[k] / n) * 100}%`, background: statusColors[k] ?? "#71717a" }} />
-                    ))}
-                  </div>
-                </li>
-              );
-            })}
-            {!topGraphs.length && <li className="text-[11px] text-dim">no runs yet</li>}
-          </ol>
-          <div className="mt-auto flex items-center gap-3 border-t border-edge pt-3 text-[11px] text-muted">
-            <span className="flex-1 truncate">{topGraphs[0] ? <>most active <b className="text-fg">{topGraphs[0][1]}</b></> : "no graph has run yet"}</span>
-            <span>graphs with runs <b className="font-mono text-fg">{graphsWithRuns} / {graphs.length}</b></span>
-          </div>
-        </div>
-
-        {/* spend */}
-        <div className="card flex flex-col p-4">
-          <CardHead icon={Coins} title="Spend" hint={`$${cost.toFixed(5)} total`} />
-          <div className="mb-3">
-            <div className="mb-1 flex justify-between text-[10.5px] text-dim"><span>tokens in <b className="font-mono text-muted">{tokIn.toLocaleString()}</b></span><span>out <b className="font-mono text-muted">{tokOut.toLocaleString()}</b></span></div>
-            <div className="flex h-2 overflow-hidden rounded-full bg-panel-3">
-              <div className="h-full bg-sky-400/70" style={{ width: `${(tokIn / Math.max(1, tokIn + tokOut)) * 100}%` }} title="input tokens" />
-              <div className="h-full bg-amber-400/80" style={{ width: `${(tokOut / Math.max(1, tokIn + tokOut)) * 100}%` }} title="output tokens" />
+      {/* this workspace */}
+      <section className="border-b border-edge">
+        <div className="mx-auto grid max-w-[1240px] gap-10 px-6 py-14 lg:grid-cols-[1.4fr_1fr]">
+          <div className="flex min-w-0 flex-col">
+            <div className="eyebrow">This workspace</div>
+            <div className="mt-2 flex items-baseline justify-between gap-4">
+              <h2 className="text-[24px] font-semibold tracking-[-0.02em]">Runs, last 7 days</h2>
+              <span className="font-mono text-[12px] text-dim">{runs7} runs · ${series.reduce((a, b) => a + b.cost, 0).toFixed(5)}</span>
+            </div>
+            <div className="mt-2 flex h-[260px] flex-col">
+              {dayStart ? <RunsLine series={series} /> : <div className="mt-3 flex-1 animate-pulse rounded-lg bg-panel-3/40" />}
             </div>
           </div>
-          <ol className="space-y-2">
-            {topCost.map(([id, label, v]) => (
-              <li key={id} className="text-[11px]">
-                <div className="flex items-center gap-2">
-                  <Link href={`/graphs/${id}`} className="min-w-0 flex-1 truncate text-muted hover:text-accent" title={label}>{label}</Link>
-                  <span className="font-mono tabular-nums text-fg">${v.toFixed(5)}</span>
-                  <span className="w-8 text-right font-mono text-dim">{Math.round((v / (cost || 1)) * 100)}%</span>
-                </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full bg-amber-400/80" style={{ width: `${(v / Math.max(cost, 1e-12)) * 100}%` }} /></div>
-              </li>
-            ))}
-            {!topCost.length && <li className="text-[11px] text-dim">no spend yet</li>}
-          </ol>
-          <div className="mt-auto grid grid-cols-2 divide-x divide-edge border-t border-edge pt-3 text-[11px]">
-            <div className="pr-3"><div className="font-mono text-[13px] text-fg">${runs.length ? (cost / runs.length).toFixed(6) : "0"}</div><div className="text-dim">average per run</div></div>
-            <div className="pl-3"><div className="font-mono text-[13px] text-fg">${calls ? (cost / calls).toFixed(6) : "0"}</div><div className="text-dim">per model call</div></div>
+          <div className="min-w-0">
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-[15px] font-semibold">Run outcomes</h3>
+              <Link href="/runs" className="flex items-center gap-1 text-[12px] text-muted hover:text-fg">All runs <ArrowRight size={12} /></Link>
+            </div>
+            <div className="mt-4 flex items-center gap-5">
+              <Donut
+                parts={statusOrder.filter((k) => byStatus[k]).map((k) => [k, byStatus[k], statusColors[k] ?? "#71717a"])}
+                size={124}
+                center={<><div className="text-[22px] font-semibold tabular-nums leading-none tracking-tight">{finished ? `${Math.round((done / finished) * 100)}%` : "–"}</div><div className="mt-1 text-[9.5px] font-medium tracking-wider text-dim uppercase">success</div></>}
+              />
+              <ul className="min-w-0 flex-1 space-y-2 text-[11px]">
+                {statusOrder.filter((k) => byStatus[k]).map((k) => (
+                  <li key={k}>
+                    <div className="flex items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="flex-1 capitalize text-muted">{k}</span><span className="font-mono tabular-nums text-fg">{byStatus[k]}</span><span className="w-8 text-right font-mono text-dim">{Math.round((byStatus[k] / (runs.length || 1)) * 100)}%</span></div>
+                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(byStatus[k] / (runs.length || 1)) * 100}%`, background: statusColors[k] ?? "#71717a" }} /></div>
+                  </li>
+                ))}
+                {!runs.length && <li className="text-dim">no runs yet</li>}
+              </ul>
+            </div>
+            <ul className="mt-5 divide-y divide-edge border-t border-edge text-[12px]">
+              {runs.slice(0, 5).map((r) => (
+                <li key={r.id}>
+                  <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 py-2 transition hover:text-accent">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} />
+                    <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
+                    <span className="shrink-0 text-dim">{r.status}</span>
+                    <span className="w-14 shrink-0 text-right font-mono text-[10.5px] text-dim">{ago(r.created_at)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {paused.length > 0 && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-pink-400/25 bg-pink-400/[.06] px-3 py-2 text-[12px]">
+                <UserRound size={13} className="text-pink-300" />
+                <span className="text-fg">{paused.length} run{paused.length > 1 ? "s" : ""} waiting on you</span>
+                <Link href={`/graphs/${paused[0].graph_id}`} className="ml-auto flex items-center gap-1 text-pink-300 hover:underline">Open <ArrowRight size={12} /></Link>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="grid flex-1 gap-4 xl:grid-cols-[3fr_2fr]">
-        <div className="card min-w-0 p-4">
-          <CardHead icon={Workflow} title="Recently edited" hint={`last ${recent.length}`} />
-          <ul className="-mx-2 divide-y divide-edge">
-            {recent.map((g) => (
-              <li key={g.id}>
-                <Link href={`/graphs/${g.id}`} className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs transition hover:bg-panel-2">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-panel-3 text-muted ring-1 ring-edge-2 transition group-hover:bg-accent/15 group-hover:text-accent"><Workflow size={12} /></span>
-                  <span className="min-w-0 flex-1 truncate font-medium text-fg">{g.name}</span>
-                  <span className="hidden font-mono text-[10.5px] text-dim sm:inline">{g.nodes} nodes</span>
-                  {g.issues > 0 ? <span className="pill bg-amber-400/10 text-amber-300">{g.issues} issue{g.issues > 1 ? "s" : ""}</span> : <span className="pill bg-emerald-400/10 text-emerald-300">ready</span>}
-                  <span className="w-16 shrink-0 text-right text-[10.5px] text-dim">{ago(g.updated_at)}</span>
-                  <ArrowRight size={13} className="shrink-0 text-dim transition group-hover:text-accent" />
-                </Link>
-              </li>
-            ))}
-            {!recent.length && <li className="px-2 py-2 text-[11px] text-dim">No graphs yet.</li>}
-          </ul>
-        </div>
-        <div className="card min-w-0 p-4">
-          <CardHead icon={Sparkles} title="Start from a template" hint="one click" />
-          <ul className="-mx-2 divide-y divide-edge">
+      {/* templates */}
+      <section className="border-b border-edge">
+        <div className="mx-auto max-w-[1240px] px-6 py-14">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className="eyebrow">Start fast</div>
+              <h2 className="mt-2 text-[24px] font-semibold tracking-[-0.02em]">Start from a template</h2>
+            </div>
+            <Link href="/templates" className="btn btn-ghost">Browse all <ArrowRight size={14} /></Link>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {templates.map((t) => {
               const Icon = templateIcon[t.id] ?? Workflow;
               return (
-                <li key={t.id}>
-                  <button onClick={() => fromTemplate(t.id)} className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition hover:bg-panel-2">
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent group-hover:text-accent-ink"><Icon size={14} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-fg">{t.name}</span>
-                      <span className="block truncate text-[10.5px] text-dim">{t.description}</span>
-                    </span>
-                    <span className="pill hidden border border-edge-2 text-muted sm:inline-flex">{t.nodes} nodes</span>
-                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-dim transition group-hover:text-accent">Use <ArrowRight size={12} /></span>
-                  </button>
-                </li>
+                <button key={t.id} onClick={() => fromTemplate(t.id)} className="group flex flex-col rounded-2xl border border-edge bg-panel p-5 text-left transition hover:-translate-y-0.5 hover:border-accent/40">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent group-hover:text-accent-ink"><Icon size={18} /></span>
+                  <span className="mt-4 text-[14.5px] font-semibold tracking-tight">{t.name}</span>
+                  <span className="mt-1.5 line-clamp-3 text-[12.5px] leading-relaxed text-muted">{t.description}</span>
+                  <span className="mt-4 flex items-center justify-between border-t border-edge pt-3 text-[11px] text-dim"><span>{t.nodes} nodes</span><span className="flex items-center gap-1 transition group-hover:text-accent">Use <ArrowRight size={12} /></span></span>
+                </button>
               );
             })}
-            {!templates.length && <li className="px-2 py-2 text-[11px] text-dim">No templates available.</li>}
-          </ul>
+            {!templates.length && <div className="col-span-full rounded-2xl border border-dashed border-edge p-8 text-center text-sm text-muted">No templates available.</div>}
+          </div>
         </div>
-      </div>
-    </>
+      </section>
+
+      {/* footer */}
+      <footer className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[12px] text-dim">
+        <span className="flex items-center gap-2 text-fg"><Logo size="sm" /> Agent Studio</span>
+        <span>Next.js · React Flow · FastAPI · LangGraph · Postgres</span>
+        <span className="ml-auto flex items-center gap-3"><span><kbd className="kbd">⌘K</kbd> commands</span><span><kbd className="kbd">⌘↵</kbd> run</span><Link href="/guide" className="hover:text-fg">How it works</Link></span>
+      </footer>
+    </div>
   );
 }
 
