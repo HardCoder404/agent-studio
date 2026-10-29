@@ -187,7 +187,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
         <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
         <AppBar health={health} onImport={onImport} onNew={create} />
 
-        <div className="mx-auto w-full max-w-[1360px] px-4 py-4 md:px-6">
+        <div className="mx-auto grid w-full max-w-[1600px] gap-4 px-4 py-4 md:px-6 xl:grid-cols-[minmax(0,1fr)_19rem] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="flex min-h-[calc(100vh-5.5rem)] min-w-0 flex-col gap-4">
             {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
             {children}
@@ -236,7 +236,7 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   const online = !!health?.groq;
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
-      <div className="mx-auto flex h-14 w-full max-w-[1360px] items-center gap-3 px-4 md:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2.5 pr-2">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
@@ -306,11 +306,11 @@ function RightRail({ runs: allRuns, paused, graphs, health }: { runs: RunInfo[];
   const runs = allRuns.slice(0, fit);
   const totalCost = runs.reduce((a, r) => a + (r.usage?.cost_usd ?? 0), 0);
   return (
-    <aside className="mt-4 grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <section className="card flex min-h-0 flex-col p-4">
+    <aside className="grid min-w-0 gap-4 md:grid-cols-2 xl:flex xl:flex-col">
+      <section className="card flex min-h-0 flex-col p-4 xl:flex-1">
         <CardHead icon={Activity} title="Recent runs" hint={`last ${runs.length}`} />
         {!allRuns.length && <p className="text-xs text-muted">No runs yet. Open a graph and press Run.</p>}
-        <ul ref={listRef} className="-mx-2 min-h-[9.5rem] flex-1 space-y-0.5 overflow-hidden">
+        <ul ref={listRef} className="-mx-2 min-h-[9.5rem] flex-1 space-y-0.5 overflow-hidden xl:min-h-0">
           {runs.map((r) => (
             <li key={r.id}>
               <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-panel-2">
