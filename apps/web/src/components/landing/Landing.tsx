@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Terminal, Trash2, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Terminal, Trash2, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -246,29 +246,29 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
   const online = !!health?.groq;
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
-      <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2.5 pr-3">
+      <div className="mx-auto grid h-14 w-full max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-4 md:px-6">
+        <Link href="/" className="flex items-center gap-2.5 justify-self-start">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight">Agent Studio</span>
-          <span className="rounded-md border border-edge-2 bg-panel-2 px-1.5 py-0.5 font-mono text-[9.5px] tracking-wider text-dim uppercase">beta</span>
         </Link>
-        <nav className="ml-2 hidden items-center gap-0.5 rounded-xl border border-edge-2 bg-panel-2/70 p-1 md:flex">
-          {items.map(([Icon, label, key]) => (
-            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent text-accent-ink shadow-[0_0_0_1px_rgb(197_241_53/0.35)]" : "text-muted hover:bg-panel-3 hover:text-fg"}`}>
-              <Icon size={13} strokeWidth={view === key ? 2.4 : 2} /> {label}
+        <nav className="hidden items-center gap-7 md:flex">
+          {items.map(([, label, key]) => (
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`relative py-1 text-[13.5px] transition ${view === key ? "font-semibold text-fg" : "font-medium text-muted hover:text-fg"}`}>
+              {label}
+              <span className={`absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent shadow-[0_0_8px] shadow-accent/80 transition ${view === key ? "opacity-100" : "opacity-0"}`} />
             </Link>
           ))}
         </nav>
-        <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input ml-1 w-auto py-1 text-xs md:hidden">
+        <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input w-auto py-1 text-xs md:hidden">
           {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
         </select>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="pill hidden border border-edge-2 bg-panel-2 text-muted sm:inline-flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
+        <div className="flex items-center gap-1 justify-self-end">
+          <span className="mr-2 hidden items-center gap-1.5 text-[12px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
             <span className={`h-1.5 w-1.5 rounded-full ${health ? (online ? "bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" : "bg-amber-400") : "bg-dim"}`} />
             {health ? (online ? "Models online" : "No model key") : "Checking"}
           </span>
-          <button onClick={onImport} className="btn btn-ghost" title="Import a graph JSON exported from the editor"><Upload size={14} /> Import</button>
-          <button onClick={onNew} className="btn btn-primary"><Plus size={15} strokeWidth={2.5} /> New graph</button>
+          <button onClick={onImport} className="btn btn-quiet" title="Import a graph JSON exported from the editor"><Upload size={14} /> Import</button>
+          <button onClick={onNew} className="btn btn-primary ml-1"><Plus size={15} strokeWidth={2.5} /> New graph</button>
         </div>
       </div>
     </header>
@@ -774,7 +774,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
         <div aria-hidden className="pointer-events-none absolute left-1/2 -bottom-40 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
         <div className="relative mx-auto flex max-w-[1200px] flex-col items-center gap-4 px-6 py-14 text-center">
           <h2 className="text-[32px] font-semibold tracking-[-0.03em]">See a run rewind in under a minute.</h2>
-          <p className="max-w-xl text-[14px] text-muted">Open the tweet-writer template, run it, answer the human gate, then fork from the draft step. The whole loop costs a fraction of a cent on Groq's free tier.</p>
+          <p className="max-w-xl text-[14px] text-muted">Open the tweet-writer template, run it, answer the human gate, then fork from the draft step. The whole loop costs a fraction of a cent on Groq&apos;s free tier.</p>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
             <button onClick={() => fromTemplate("tweet-review")} className="btn btn-primary h-11 px-6 text-[14.5px]"><Play size={15} strokeWidth={2.5} /> Try the tweet-writer template</button>
             <Link href="/guide" className="btn btn-ghost h-11 px-6 text-[14.5px]"><BookOpen size={15} className="text-accent" /> How it works</Link>
@@ -1156,7 +1156,6 @@ function Guide() {
   const order: NodeType[] = ["start", "llm", "tool", "router", "human", "code", "end"];
   const toc: [string, string][] = [["loops", "The four loops"], ["nodes", "Node types"], ["shortcuts", "Shortcuts"], ["glossary", "Glossary"], ["faq", "Common questions"], ["hood", "Under the hood"]];
   const shortcuts: [string, string][] = [["⌘K", "Command palette: add nodes, run, fit view, undo, delete."], ["⌘↵", "Run the graph. A dialog asks for the input variables no node produces."], ["⌘Z / ⇧⌘Z", "Undo and redo any canvas edit, including config changes."], ["⌫", "Delete the selected node or edge."], ["drag from a port", "Connect nodes. Routers have one port per branch along the bottom edge."], ["click a timeline bar", "Select that node and show the step's input, output and usage."]];
-  const H = ({ id, children }: { id: string; children: React.ReactNode }) => <h2 id={id} className="scroll-mt-20 text-[20px] font-semibold tracking-[-0.02em]">{children}</h2>;
   // scroll-spy: the heading nearest the top of the viewport is the active one
   const [active, setActive] = useState(toc[0][0]);
   useEffect(() => {
@@ -1311,6 +1310,10 @@ const faq: [string, string][] = [
   ["Which models can I use?", "Anything in the Models list: Groq's open-weight models by default, Gemini when a key is set. Each node picks its own model."],
   ["Where do runs and their events live?", "In Postgres, next to the graph. Console, timeline, cost and traces all read the same event log, so nothing is recomputed."],
 ];
+
+function H({ id, children }: { id: string; children: React.ReactNode }) {
+  return <h2 id={id} className="scroll-mt-20 text-[20px] font-semibold tracking-[-0.02em]">{children}</h2>;
+}
 
 const guideNotes: Record<NodeType, string> = {
   start: "input → vars",
