@@ -190,7 +190,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 
         {isHome ? (
           <>
-            {error && <div className="mx-auto mt-4 max-w-[1240px] rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
+            {error && <div className="mx-auto mt-4 max-w-[1200px] rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
             {children}
           </>
         ) : (
@@ -514,63 +514,75 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
     <div className="min-w-0">
       {/* hero */}
       <section className="relative overflow-hidden border-b border-edge">
-        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(70%_80%_at_30%_0%,black,transparent)]" />
-        <div aria-hidden className="pointer-events-none absolute -top-40 left-1/4 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -right-40 top-20 h-[26rem] w-[26rem] rounded-full bg-sky-400/10 blur-3xl" />
-        <div className="relative mx-auto grid max-w-[1240px] gap-10 px-6 pt-14 pb-12 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-20 lg:pb-16">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="pill border border-accent/30 bg-accent/10 text-accent"><Zap size={11} /> Time-travel debugging for agent workflows</span>
-            </div>
-            <h1 className="mt-5 text-[44px] leading-[0.98] font-semibold tracking-[-0.035em] md:text-[60px]">
-              Build agents on a canvas.
-              <br />
-              Run, <span className="text-accent">rewind</span>, fork.
-            </h1>
-            <p className="mt-5 max-w-xl text-[15.5px] leading-relaxed text-muted">
-              Compose multi-agent workflows visually, watch tokens stream through every node, then scrub back to any checkpoint, edit the state and fork a new run from that step. Evals, model sweeps and MCP tools are built in.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <button onClick={onNew} className="btn btn-primary h-10 px-5 text-[14px]"><Plus size={16} strokeWidth={2.5} /> New graph</button>
-              <Link href="/templates" className="btn btn-ghost h-10 px-5 text-[14px]"><Sparkles size={15} className="text-accent" /> Browse templates</Link>
-              <Link href="/guide" className="flex items-center gap-1 text-[13px] text-muted transition hover:text-fg">How it works <ArrowRight size={14} /></Link>
-            </div>
-            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-dim">
-              {["Free tiers end to end", "LangGraph checkpoints", "MCP tools", "Docker sandbox"].map((t) => (
-                <span key={t} className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-accent" /> {t}</span>
-              ))}
-            </div>
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(60%_70%_at_50%_0%,black,transparent)]" />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 -top-56 h-[36rem] w-[60rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
+        <div className="relative mx-auto max-w-[1200px] px-6 pt-16 pb-10 text-center lg:pt-20">
+          <span className="pill border border-accent/30 bg-accent/10 text-accent"><Zap size={11} /> Time-travel debugging for agent workflows</span>
+          <h1 className="mx-auto mt-6 max-w-4xl text-[46px] leading-[1] font-semibold tracking-[-0.04em] md:text-[68px]">
+            Build agents on a canvas.
+            <br />
+            <span className="bg-gradient-to-r from-accent via-accent to-emerald-300 bg-clip-text text-transparent">Run, rewind, fork.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-muted">
+            Compose multi-agent workflows visually, watch tokens stream through every node, then scrub back to any checkpoint, edit the state and fork a new run from that step. Evals, model sweeps and MCP tools are built in.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <button onClick={onNew} className="btn btn-primary h-11 px-6 text-[14.5px]"><Plus size={16} strokeWidth={2.5} /> New graph</button>
+            <Link href="/templates" className="btn btn-ghost h-11 px-6 text-[14.5px]"><Sparkles size={15} className="text-accent" /> Browse templates</Link>
           </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-dim">
+            {["Free tiers end to end", "LangGraph checkpoints", "MCP tools", "Docker sandbox"].map((t) => (
+              <span key={t} className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-accent" /> {t}</span>
+            ))}
+          </div>
+        </div>
 
-          {/* product window */}
-          <div className="relative min-w-0">
-            <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-[28px] bg-accent/10 blur-2xl" />
-            <div className="card relative overflow-hidden shadow-[0_30px_80px_-30px_rgb(0_0_0/0.9)] ring-1 ring-accent/20">
-              <div className="flex items-center gap-2 border-b border-edge bg-panel-2/70 px-3 py-2">
-                <span className="flex gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" /></span>
-                <span className="ml-2 truncate font-mono text-[11px] text-muted">{heroSpec?.name ?? "Tweet writer with human review"}</span>
-                <span className="pill ml-auto border border-accent/30 bg-accent/10 text-accent"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /> live canvas</span>
+        {/* product window */}
+        <div className="relative mx-auto max-w-[1100px] px-6 pb-16">
+          <div aria-hidden className="pointer-events-none absolute inset-x-16 -top-6 h-40 rounded-full bg-accent/20 blur-3xl" />
+          <div className="card relative overflow-hidden shadow-[0_40px_120px_-40px_rgb(0_0_0/0.95)] ring-1 ring-accent/25">
+            <div className="flex items-center gap-2 border-b border-edge bg-panel-2/80 px-3 py-2">
+              <span className="flex gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" /></span>
+              <span className="ml-3 flex items-center gap-2 rounded-md border border-edge-2 bg-panel px-2 py-0.5 font-mono text-[11px] text-muted"><Logo size="sm" /> {heroSpec?.name ?? "Tweet writer with human review"}</span>
+              <span className="ml-auto flex items-center gap-2">
+                <span className="pill border border-edge-2 bg-panel text-muted">Saved · v6</span>
+                <span className="pill border border-accent/30 bg-accent/10 text-accent"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /> live canvas</span>
+              </span>
+            </div>
+            <div className="relative h-[460px]">
+              {heroSpec ? <TemplatePreview spec={heroSpec} /> : <div className="grid h-full place-items-center px-6"><HeroFlow /></div>}
+              {/* floating product moments */}
+              <div className="pointer-events-none absolute top-5 left-5 w-60 rounded-xl border border-edge-2 bg-panel/95 p-3 text-[11px] shadow-xl backdrop-blur">
+                <div className="mb-1.5 flex items-center justify-between"><span className="font-semibold text-fg">Run state</span><span className="font-mono text-dim">step 2 / 8</span></div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-panel-3"><div className="h-full w-1/4 rounded-full bg-accent" /></div>
+                <div className="mt-2 space-y-1 font-mono text-[10.5px]">
+                  <div className="flex justify-between text-muted"><span>after Write draft</span><span className="text-pink-300">paused</span></div>
+                  <div className="flex justify-between text-accent"><span>edited by hand</span><span>fork</span></div>
+                </div>
+                <div className="mt-2.5 rounded-md bg-accent px-2 py-1 text-center text-[10.5px] font-semibold text-accent-ink">Edit state &amp; fork from step 2</div>
               </div>
-              <div className="h-[380px]">
-                {heroSpec ? <TemplatePreview spec={heroSpec} /> : <div className="grid h-full place-items-center px-6"><HeroFlow /></div>}
+              <div className="pointer-events-none absolute right-5 bottom-5 w-64 rounded-xl border border-pink-400/40 bg-panel/95 p-3 text-[11px] shadow-xl backdrop-blur">
+                <div className="mb-1 flex items-center gap-1.5 font-semibold text-fg"><UserRound size={11} className="text-pink-300" /> Human review is waiting for you</div>
+                <div className="text-muted">Approve this draft? (yes/no)</div>
+                <div className="mt-2 flex gap-1.5"><span className="btn btn-sm btn-ghost">Yes</span><span className="btn btn-sm btn-ghost">No</span><span className="input ml-auto h-7 w-24 py-0 text-[10px] text-dim">or type…</span></div>
               </div>
-              <div className="flex items-center gap-3 border-t border-edge bg-panel-2/70 px-3 py-2 text-[11px] text-muted">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> model</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-pink-400" /> human gate</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-violet-400" /> router</span>
-                <Link href="/templates" className="ml-auto flex items-center gap-1 text-accent hover:underline">Open in templates <ArrowRight size={12} /></Link>
-              </div>
+            </div>
+            <div className="flex items-center gap-3 border-t border-edge bg-panel-2/80 px-3 py-2 text-[11px] text-muted">
+              {[["Timeline", true], ["Console", false], ["Runs", false], ["Compare", false], ["Evals", false], ["Cost", false], ["Tools", false]].map(([t, on]) => (
+                <span key={String(t)} className={on ? "border-b-2 border-accent pb-0.5 text-fg" : ""}>{t}</span>
+              ))}
+              <span className="pill ml-auto border border-edge-2 bg-panel text-muted"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> done · 2 calls · $0.00007</span>
             </div>
           </div>
         </div>
 
         {/* stats strip */}
-        <div className="relative border-t border-edge bg-panel/50 backdrop-blur">
-          <div className="mx-auto grid max-w-[1240px] grid-cols-2 divide-x divide-edge px-6 md:grid-cols-4">
+        <div className="relative border-t border-edge bg-panel/60 backdrop-blur">
+          <div className="mx-auto grid max-w-[1200px] grid-cols-2 divide-x divide-edge px-6 md:grid-cols-4">
             {stats.map(([value, label, sub]) => (
-              <div key={label} className="px-5 py-5 first:pl-0">
-                <div className="text-[30px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
-                <div className="mt-1.5 text-[12px] font-medium text-fg/80">{label}</div>
+              <div key={label} className="px-6 py-6 first:pl-0">
+                <div className="text-[32px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
+                <div className="mt-2 text-[12.5px] font-medium text-fg/85">{label}</div>
                 <div className="text-[11px] text-dim">{sub}</div>
               </div>
             ))}
@@ -579,14 +591,14 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
       </section>
 
       {/* features */}
-      <section className="border-b border-edge">
-        <div className="mx-auto max-w-[1240px] px-6 py-14">
+      <section className="border-b border-edge bg-[radial-gradient(60%_60%_at_80%_0%,rgb(197_241_53/0.06),transparent)]">
+        <div className="mx-auto max-w-[1200px] px-6 py-16">
           <div className="eyebrow">Why Agent Studio</div>
           <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.02em]">Debug agents like code, not like black boxes.</h2>
           <p className="mt-2 max-w-2xl text-[14px] text-muted">Console, timeline, cost and traces all derive from one event log, so what you see on the canvas is what actually ran.</p>
-          <div className="mt-10 grid gap-8 md:grid-cols-3">
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
             {features.map(([Icon, title, body, visual]) => (
-              <div key={title} className="flex flex-col">
+              <div key={title} className="card flex flex-col p-6">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20"><Icon size={18} /></span>
                 <h3 className="mt-4 text-[17px] font-semibold tracking-tight">{title}</h3>
                 <p className="mt-2 text-[13px] leading-relaxed text-muted">{body}</p>
@@ -598,8 +610,8 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
       </section>
 
       {/* this workspace */}
-      <section className="border-b border-edge">
-        <div className="mx-auto grid max-w-[1240px] gap-10 px-6 py-14 lg:grid-cols-[1.4fr_1fr]">
+      <section className="border-b border-edge bg-panel/40">
+        <div className="mx-auto grid max-w-[1200px] gap-10 px-6 py-16 lg:grid-cols-[1.4fr_1fr]">
           <div className="flex min-w-0 flex-col">
             <div className="eyebrow">This workspace</div>
             <div className="mt-2 flex items-baseline justify-between gap-4">
@@ -656,7 +668,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
 
       {/* templates */}
       <section className="border-b border-edge">
-        <div className="mx-auto max-w-[1240px] px-6 py-14">
+        <div className="mx-auto max-w-[1200px] px-6 py-16">
           <div className="flex items-end justify-between gap-4">
             <div>
               <div className="eyebrow">Start fast</div>
@@ -682,7 +694,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
       </section>
 
       {/* footer */}
-      <footer className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[12px] text-dim">
+      <footer className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[12px] text-dim">
         <span className="flex items-center gap-2 text-fg"><Logo size="sm" /> Agent Studio</span>
         <span>Next.js · React Flow · FastAPI · LangGraph · Postgres</span>
         <span className="ml-auto flex items-center gap-3"><span><kbd className="kbd">⌘K</kbd> commands</span><span><kbd className="kbd">⌘↵</kbd> run</span><Link href="/guide" className="hover:text-fg">How it works</Link></span>
