@@ -538,7 +538,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
         </div>
 
         {/* product window */}
-        <div className="relative mx-auto max-w-[1100px] px-6 pb-16">
+        <div className="relative mx-auto max-w-[1100px] px-6 pb-12">
           <div aria-hidden className="pointer-events-none absolute inset-x-16 -top-6 h-40 rounded-full bg-accent/20 blur-3xl" />
           <div className="card relative overflow-hidden shadow-[0_40px_120px_-40px_rgb(0_0_0/0.95)] ring-1 ring-accent/25">
             <div className="flex items-center gap-2 border-b border-edge bg-panel-2/80 px-3 py-2">
@@ -546,11 +546,11 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
               <span className="ml-3 flex items-center gap-2 rounded-md border border-edge-2 bg-panel px-2 py-0.5 font-mono text-[11px] text-muted"><Logo size="sm" /> {heroSpec?.name ?? "Tweet writer with human review"}</span>
               <span className="ml-auto flex items-center gap-2">
                 <span className="pill border border-edge-2 bg-panel text-muted">Saved · v6</span>
-                <span className="pill border border-accent/30 bg-accent/10 text-accent"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /> live canvas</span>
+                <span className="pill border border-accent/30 bg-accent/10 text-accent"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /> replaying a run</span>
               </span>
             </div>
             <div className="relative h-[460px]">
-              {heroSpec ? <TemplatePreview spec={heroSpec} /> : <div className="grid h-full place-items-center px-6"><HeroFlow /></div>}
+              {heroSpec ? <TemplatePreview spec={heroSpec} simulate /> : <div className="grid h-full place-items-center px-6"><HeroFlow /></div>}
               {/* floating product moments */}
               <div className="pointer-events-none absolute top-5 left-5 w-60 rounded-xl border border-edge-2 bg-panel/95 p-3 text-[11px] shadow-xl backdrop-blur">
                 <div className="mb-1.5 flex items-center justify-between"><span className="font-semibold text-fg">Run state</span><span className="font-mono text-dim">step 2 / 8</span></div>
@@ -580,9 +580,9 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
         <div className="relative border-t border-edge bg-panel/60 backdrop-blur">
           <div className="mx-auto grid max-w-[1200px] grid-cols-2 divide-x divide-edge px-6 md:grid-cols-4">
             {stats.map(([value, label, sub]) => (
-              <div key={label} className="px-6 py-6 first:pl-0">
-                <div className="text-[32px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
-                <div className="mt-2 text-[12.5px] font-medium text-fg/85">{label}</div>
+              <div key={label} className="px-6 py-4 first:pl-0">
+                <div className="text-[28px] font-semibold tabular-nums leading-none tracking-tight">{value}</div>
+                <div className="mt-1.5 text-[12.5px] font-medium text-fg/85">{label}</div>
                 <div className="text-[11px] text-dim">{sub}</div>
               </div>
             ))}
@@ -592,13 +592,13 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
 
       {/* features */}
       <section className="border-b border-edge bg-[radial-gradient(60%_60%_at_80%_0%,rgb(197_241_53/0.06),transparent)]">
-        <div className="mx-auto max-w-[1200px] px-6 py-16">
+        <div className="mx-auto max-w-[1200px] px-6 py-12">
           <div className="eyebrow">Why Agent Studio</div>
-          <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.02em]">Debug agents like code, not like black boxes.</h2>
+          <h2 className="mt-2 text-[28px] font-semibold tracking-[-0.02em]">Debug agents like code, not like black boxes.</h2>
           <p className="mt-2 max-w-2xl text-[14px] text-muted">Console, timeline, cost and traces all derive from one event log, so what you see on the canvas is what actually ran.</p>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
             {features.map(([Icon, title, body, visual]) => (
-              <div key={title} className="card flex flex-col p-6">
+              <div key={title} className="card flex flex-col p-5">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20"><Icon size={18} /></span>
                 <h3 className="mt-4 text-[17px] font-semibold tracking-tight">{title}</h3>
                 <p className="mt-2 text-[13px] leading-relaxed text-muted">{body}</p>
@@ -611,14 +611,14 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
 
       {/* this workspace */}
       <section className="border-b border-edge bg-panel/40">
-        <div className="mx-auto grid max-w-[1200px] gap-10 px-6 py-16 lg:grid-cols-[1.4fr_1fr]">
+        <div className="mx-auto grid max-w-[1200px] gap-8 px-6 py-12 lg:grid-cols-[1.4fr_1fr]">
           <div className="flex min-w-0 flex-col">
             <div className="eyebrow">This workspace</div>
             <div className="mt-2 flex items-baseline justify-between gap-4">
               <h2 className="text-[24px] font-semibold tracking-[-0.02em]">Runs, last 7 days</h2>
               <span className="font-mono text-[12px] text-dim">{runs7} runs · ${series.reduce((a, b) => a + b.cost, 0).toFixed(5)}</span>
             </div>
-            <div className="mt-2 flex h-[260px] flex-col">
+            <div className="mt-2 flex h-[230px] flex-col">
               {dayStart ? <RunsLine series={series} /> : <div className="mt-3 flex-1 animate-pulse rounded-lg bg-panel-3/40" />}
             </div>
           </div>
@@ -668,7 +668,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
 
       {/* templates */}
       <section className="border-b border-edge">
-        <div className="mx-auto max-w-[1200px] px-6 py-16">
+        <div className="mx-auto max-w-[1200px] px-6 py-12">
           <div className="flex items-end justify-between gap-4">
             <div>
               <div className="eyebrow">Start fast</div>
@@ -676,11 +676,11 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
             </div>
             <Link href="/templates" className="btn btn-ghost">Browse all <ArrowRight size={14} /></Link>
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {templates.map((t) => {
               const Icon = templateIcon[t.id] ?? Workflow;
               return (
-                <button key={t.id} onClick={() => fromTemplate(t.id)} className="group flex flex-col rounded-2xl border border-edge bg-panel p-5 text-left transition hover:-translate-y-0.5 hover:border-accent/40">
+                <button key={t.id} onClick={() => fromTemplate(t.id)} className="group flex flex-col rounded-2xl border border-edge bg-panel p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/40">
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent group-hover:text-accent-ink"><Icon size={18} /></span>
                   <span className="mt-4 text-[14.5px] font-semibold tracking-tight">{t.name}</span>
                   <span className="mt-1.5 line-clamp-3 text-[12.5px] leading-relaxed text-muted">{t.description}</span>
@@ -694,7 +694,7 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
       </section>
 
       {/* footer */}
-      <footer className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[12px] text-dim">
+      <footer className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-6 text-[12px] text-dim">
         <span className="flex items-center gap-2 text-fg"><Logo size="sm" /> Agent Studio</span>
         <span>Next.js · React Flow · FastAPI · LangGraph · Postgres</span>
         <span className="ml-auto flex items-center gap-3"><span><kbd className="kbd">⌘K</kbd> commands</span><span><kbd className="kbd">⌘↵</kbd> run</span><Link href="/guide" className="hover:text-fg">How it works</Link></span>
