@@ -100,15 +100,15 @@ function useFitRows(ref: React.RefObject<HTMLElement | null>, row = 42, chrome =
 }
 
 /** How many list rows fit in a box whose height is set by flex, not by its content. */
-function useFitList(ref: React.RefObject<HTMLElement | null>, row: number, min = 3) {
+function useFitList(ref: React.RefObject<HTMLElement | null>, row: number, min = 3, max = 10) {
   const [n, setN] = useState(min);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => setN(Math.max(min, Math.floor((entries[0]?.contentRect.height ?? 0) / row))));
+    const ro = new ResizeObserver((entries) => setN(Math.min(max, Math.max(min, Math.floor((entries[0]?.contentRect.height ?? 0) / row)))));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref, row, min]);
+  }, [ref, row, min, max]);
   return n;
 }
 
@@ -325,7 +325,7 @@ function RightRail({ runs: allRuns, paused, graphs, health }: { runs: RunInfo[];
                 <span className={`h-2 w-2 shrink-0 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} />
                 <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
                 <span className="shrink-0 text-muted">{r.status}</span>
-                <span className="w-10 shrink-0 text-right font-mono text-[10.5px] text-dim">{r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)}s` : ""}</span>
+                <span className="w-10 shrink-0 text-right font-mono text-[10.5px] text-dim">{r.duration_ms != null && ["done", "error", "cancelled"].includes(r.status) ? `${(r.duration_ms / 1000).toFixed(1)}s` : ""}</span>
               </Link>
             </li>
           ))}
@@ -1151,91 +1151,122 @@ function Guide() {
     [ShieldCheck, "Eval and ship", "Build a dataset, pick scorers, run an eval; failures light up the node that caused them. Sweep candidate models for a node and apply the cheapest one that still passes."],
   ];
   const order: NodeType[] = ["start", "llm", "tool", "router", "human", "code", "end"];
-  type Tab = "nodes" | "shortcuts" | "glossary" | "faq";
-  const [tab, setTab] = useState<Tab>("nodes");
-  const tabs: [Tab, LucideIcon, string][] = [
-    ["nodes", Workflow, "Node types"],
-    ["shortcuts", Keyboard, "Shortcuts"],
-    ["glossary", BookOpen, "Glossary"],
-    ["faq", HelpCircle, "Questions"],
-  ];
+  const toc: [string, string][] = [["loops", "The four loops"], ["nodes", "Node types"], ["shortcuts", "Shortcuts"], ["glossary", "Glossary"], ["faq", "Common questions"], ["hood", "Under the hood"]];
+  const shortcuts: [string, string][] = [["⌘K", "Command palette: add nodes, run, fit view, undo, delete."], ["⌘↵", "Run the graph. A dialog asks for the input variables no node produces."], ["⌘Z / ⇧⌘Z", "Undo and redo any canvas edit, including config changes."], ["⌫", "Delete the selected node or edge."], ["drag from a port", "Connect nodes. Routers have one port per branch along the bottom edge."], ["click a timeline bar", "Select that node and show the step's input, output and usage."]];
+  const H = ({ id, children }: { id: string; children: React.ReactNode }) => <h2 id={id} className="scroll-mt-20 text-[20px] font-semibold tracking-[-0.02em]">{children}</h2>;
   return (
-    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-      {/* stepper */}
-      <section className="card relative flex min-w-0 flex-col overflow-hidden p-6">
-        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
-        <div className="eyebrow">How it works</div>
-        <h2 className="mt-1.5 text-[26px] font-semibold tracking-[-0.02em]">Four loops, <span className="text-accent">one canvas.</span></h2>
-        <p className="mt-1 text-[12.5px] text-muted">Everything below runs on free tiers.</p>
-        <ol className="relative mt-6 mb-6 ml-4 flex flex-1 flex-col justify-evenly gap-6 border-l border-edge-2 pl-7">
-          {steps.map(([Icon, title, body], i) => (
-            <li key={title} className="relative">
-              <span className="absolute top-0 -left-[2.45rem] grid h-7 w-7 place-items-center rounded-full border-2 border-canvas bg-accent font-mono text-[11px] font-bold text-accent-ink ring-1 ring-accent/40">{i + 1}</span>
-              <div className="flex items-center gap-2 text-[15px] font-semibold"><Icon size={15} className="text-accent" /> {title}</div>
-              <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-muted">{body}</p>
-            </li>
-          ))}
-        </ol>
-        <div className="rounded-r-xl border-l-2 border-accent bg-accent/[.06] px-4 py-3 pt-3 text-[12px] leading-relaxed text-muted">
-          <div className="mb-1 flex items-center gap-1.5 text-[12.5px] font-semibold text-fg"><Cpu size={13} className="text-accent" /> Under the hood</div>
-          Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted; forking creates a new checkpoint whose parent is the one you edited. Console, timeline, cost and traces all derive from the same event log.
+    <div className="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]">
+      <nav className="hidden lg:block">
+        <div className="sticky top-[4.5rem]">
+          <div className="eyebrow mb-2 px-2">On this page</div>
+          <ul className="space-y-0.5 border-l border-edge text-[12.5px]">
+            {toc.map(([id, label]) => (
+              <li key={id}><a href={`#${id}`} className="-ml-px block border-l border-transparent px-3 py-1 text-muted transition hover:border-accent hover:text-fg">{label}</a></li>
+            ))}
+          </ul>
+          <Link href="/templates" className="btn btn-sm btn-ghost mt-4 w-full"><Sparkles size={13} className="text-accent" /> Try a template</Link>
         </div>
-      </section>
+      </nav>
 
-      {/* tabbed reference */}
-      <section className="card flex min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="flex h-11 shrink-0 items-stretch gap-0.5 border-b border-edge px-2">
-          {tabs.map(([key, Icon, label]) => (
-            <button key={key} data-active={tab === key} onClick={() => setTab(key)} className={`tab-underline flex items-center gap-1.5 px-3 text-[12.5px] font-medium transition ${tab === key ? "text-fg" : "text-muted hover:text-fg"}`}>
-              <Icon size={13} className={tab === key ? "text-accent" : ""} /> {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {tab === "nodes" && (
-            <ul className="flex flex-1 flex-col divide-y divide-edge">
-              {order.map((k) => {
-                const m = typeMeta[k];
-                return (
-                  <li key={k} className="flex flex-1 items-center gap-3 px-4 py-3 text-xs">
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${m.cls}`}><m.icon size={16} /></span>
-                    <span className="w-16 shrink-0 text-[13.5px] font-medium text-fg">{nodeMeta[k].title}</span>
-                    <span className="min-w-0 flex-1 text-[12.5px] text-muted">{nodeMeta[k].hint}</span>
-                    <span className="hidden rounded-md border border-edge-2 bg-panel-2 px-1.5 py-0.5 font-mono text-[10.5px] text-dim lg:inline">{guideNotes[k]}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {tab === "shortcuts" && (
-            <ul className="flex flex-1 flex-col divide-y divide-edge text-[13px]">
-              {[["⌘K", "Open the command palette: add nodes, run, fit view, undo, delete."], ["⌘↵", "Run the graph. A dialog asks for the input variables no node produces."], ["⌘Z / ⇧⌘Z", "Undo and redo any canvas edit, including config changes."], ["⌫", "Delete the selected node or edge."], ["drag from a port", "Connect nodes. Routers have one port per branch along the bottom edge."], ["click a timeline bar", "Select that node and show the step's input, output and usage."]].map(([k, v]) => (
-                <li key={k} className="flex flex-1 items-center gap-4 px-4 py-3"><kbd className="kbd shrink-0 text-[11px]">{k}</kbd><span className="text-muted">{v}</span></li>
-              ))}
-            </ul>
-          )}
-          {tab === "glossary" && (
-            <dl className="flex flex-1 flex-col divide-y divide-edge text-[13px]">
-              {glossary.map(([term, def]) => (
-                <div key={term} className="flex flex-1 items-center gap-4 px-4 py-3">
-                  <dt className="w-24 shrink-0 font-medium text-fg">{term}</dt>
-                  <dd className="min-w-0 text-muted">{def}</dd>
+      <article className="min-w-0 space-y-10 pb-6">
+        <header className="card relative overflow-hidden p-6">
+          <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(60%_100%_at_0%_0%,black,transparent)] opacity-70" />
+          <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-accent/15 blur-3xl" />
+          <div className="relative">
+            <div className="eyebrow">How it works</div>
+            <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.03em]">Four loops, <span className="text-accent">one canvas.</span></h1>
+            <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted">Compose a workflow, run it, rewind any step, then eval it. Everything here runs on free tiers; a full run of the tweet template costs about $0.00007.</p>
+          </div>
+        </header>
+
+        <section className="space-y-4">
+          <H id="loops">The four loops</H>
+          <ol className="grid gap-4 md:grid-cols-2">
+            {steps.map(([Icon, title, body], i) => (
+              <li key={title} className="card flex gap-4 p-5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-[12px] font-bold text-accent-ink">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-[15px] font-semibold"><Icon size={15} className="text-accent" /> {title}</span>
+                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">{body}</p>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between"><H id="nodes">Node types</H><span className="text-[11px] text-dim">what each block on the canvas does</span></div>
+          <div className="card overflow-hidden">
+            <table className="w-full text-[12.5px]">
+              <thead className="bg-panel-2/60"><tr className="eyebrow"><th className="px-4 py-2 text-left">Node</th><th className="px-4 py-2 text-left">Does</th><th className="hidden px-4 py-2 text-left md:table-cell">Config</th></tr></thead>
+              <tbody>
+                {order.map((k) => {
+                  const m = typeMeta[k];
+                  return (
+                    <tr key={k} className="border-t border-edge">
+                      <td className="whitespace-nowrap px-4 py-2.5"><span className="flex items-center gap-2.5"><span className={`grid h-7 w-7 place-items-center rounded-lg ${m.cls}`}><m.icon size={13} /></span><span className="font-medium text-fg">{nodeMeta[k].title}</span></span></td>
+                      <td className="px-4 py-2.5 text-muted">{nodeMeta[k].hint}</td>
+                      <td className="hidden px-4 py-2.5 md:table-cell"><span className="rounded-md border border-edge-2 bg-panel-2 px-1.5 py-0.5 font-mono text-[10.5px] text-dim">{guideNotes[k]}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <H id="shortcuts">Shortcuts</H>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {shortcuts.map(([k, v]) => (
+              <li key={k} className="card flex items-start gap-3 p-3.5"><kbd className="kbd mt-0.5 shrink-0 text-[11px]">{k}</kbd><span className="text-[12px] leading-relaxed text-muted">{v}</span></li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="space-y-4">
+          <H id="glossary">Glossary</H>
+          <dl className="card grid divide-y divide-edge md:grid-cols-2 md:divide-x">
+            {glossary.map(([term, def], i) => (
+              <div key={term} className={`flex gap-3 px-4 py-3 ${i % 2 === 1 ? "md:border-t-0" : ""}`}>
+                <dt className="w-24 shrink-0 text-[12.5px] font-medium text-fg">{term}</dt>
+                <dd className="min-w-0 text-[12px] leading-relaxed text-muted">{def}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="space-y-4">
+          <H id="faq">Common questions</H>
+          <ul className="grid gap-3 md:grid-cols-2">
+            {faq.map(([q, a]) => (
+              <li key={q} className="card p-4">
+                <div className="flex items-start gap-2 text-[13px] font-medium text-fg"><HelpCircle size={14} className="mt-0.5 shrink-0 text-accent" /> {q}</div>
+                <p className="mt-1.5 pl-6 text-[12px] leading-relaxed text-muted">{a}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="space-y-4">
+          <H id="hood">Under the hood</H>
+          <div className="card grid gap-0 divide-y divide-edge md:grid-cols-3 md:divide-x md:divide-y-0">
+            {[
+              [Cpu, "Checkpoints", "Each node completion is a LangGraph checkpoint in Postgres. A run is a pointer to the head of a checkpoint chain plus the events it emitted."],
+              [GitFork, "Forks", "Forking creates a new checkpoint whose parent is the one you edited, and a new run with its own head. Lineage is a parent-pointer walk."],
+              [Terminal, "One event log", "Console, timeline, cost and traces all derive from the same run_events table; reconnects replay by sequence number."],
+            ].map(([Icon, title, body]) => {
+              const I = Icon as LucideIcon;
+              return (
+                <div key={String(title)} className="p-5">
+                  <div className="flex items-center gap-2 text-[13.5px] font-semibold"><I size={14} className="text-accent" /> {String(title)}</div>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-muted">{String(body)}</p>
                 </div>
-              ))}
-            </dl>
-          )}
-          {tab === "faq" && (
-            <ul className="flex flex-1 flex-col divide-y divide-edge text-[13px]">
-              {faq.map(([q, a]) => (
-                <li key={q} className="flex flex-1 flex-col justify-center px-4 py-3">
-                  <div className="font-medium text-fg">{q}</div>
-                  <p className="mt-0.5 leading-relaxed text-muted">{a}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+              );
+            })}
+          </div>
+        </section>
+      </article>
     </div>
   );
 }
