@@ -39,6 +39,9 @@ export function Editor() {
     const onRejection = (e: PromiseRejectionEvent) => {
       if (e.reason && typeof e.reason === "object" && (e.reason as { type?: string }).type === "cancelation") e.preventDefault();
     };
+    // a previous page (the landing hero replays a run through the same store) must never leak into the editor
+    useRunStore.getState().clear();
+    useGraphStore.setState({ issues: [], selectedId: null });
     window.addEventListener("unhandledrejection", onRejection);
     window.addEventListener("keydown", onKey);
     return () => {
