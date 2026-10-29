@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, ArrowUpDown, BookOpen, Coins, CheckSquare, ChevronLeft, ChevronRight, Square as SquareIcon, Bot, Code2, Copy, Cpu, FileJson, Flag, GitFork, HelpCircle, Keyboard, LayoutGrid, Link2, Play, Plus, Search, ShieldCheck, Sparkles, Terminal, Trash2, Upload, UserRound, Workflow, Wrench, X, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -456,6 +456,25 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
     }
   }
   const runs7 = series.reduce((a, b) => a + b.runs, 0);
+  const cost7 = series.reduce((a, b) => a + b.cost, 0);
+  const recent = [...graphs].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 5);
+  const graphsWithRuns = new Set(runs.map((r) => r.graph_id)).size;
+  const tokIn = runs.reduce((a, r) => a + (r.usage?.input_tokens ?? 0), 0);
+  const tokOut = runs.reduce((a, r) => a + (r.usage?.output_tokens ?? 0), 0);
+  const capabilities: [LucideIcon, string, string][] = [
+    [LayoutGrid, "Visual builder", "Drag nodes, connect ports, edit prompts in Monaco with {{variables}}."],
+    [Terminal, "Live streaming", "Tokens render inside the node that produces them, over a WebSocket."],
+    [Activity, "Timeline and console", "A waterfall of node spans and a filterable event log for every run."],
+    [GitFork, "Run compare", "Metrics, steps and final variables diffed side by side."],
+    [Wrench, "MCP tools", "Connect a server over stdio or HTTP; its tools appear in the Tool node."],
+    [Coins, "Cost tracking", "Per-node calls, tokens, p50 and p95 latency and spend, priced per model."],
+  ];
+  const steps: [string, string][] = [
+    ["Compose", "Drag nodes onto the canvas and wire them up."],
+    ["Run", "Press ⌘↵ and watch tokens stream through each node."],
+    ["Rewind", "Scrub checkpoints, edit state, fork from any step."],
+    ["Eval", "Score a dataset, find the cheapest model that passes."],
+  ];
 
   const stats: [string, string, string][] = [
     [graphsOrNull ? String(graphs.length) : "–", "graphs", `${healthy} ready to run`],
@@ -606,62 +625,107 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
               </div>
             ))}
           </div>
+          <div className="card mt-4 grid divide-y divide-edge md:grid-cols-3 md:divide-x md:divide-y-0 lg:grid-cols-6">
+            {capabilities.map(([Icon, title, body]) => (
+              <div key={title} className="p-4">
+                <div className="flex items-center gap-2 text-[13px] font-semibold"><Icon size={14} className="text-accent" /> {title}</div>
+                <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">{body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* this workspace */}
       <section className="border-b border-edge bg-panel/40">
-        <div className="mx-auto grid max-w-[1200px] gap-8 px-6 py-12 lg:grid-cols-[1.4fr_1fr]">
-          <div className="flex min-w-0 flex-col">
-            <div className="eyebrow">This workspace</div>
-            <div className="mt-2 flex items-baseline justify-between gap-4">
-              <h2 className="text-[24px] font-semibold tracking-[-0.02em]">Runs, last 7 days</h2>
-              <span className="font-mono text-[12px] text-dim">{runs7} runs · ${series.reduce((a, b) => a + b.cost, 0).toFixed(5)}</span>
+        <div className="mx-auto max-w-[1200px] px-6 py-12">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className="eyebrow">This workspace</div>
+              <h2 className="mt-2 text-[28px] font-semibold tracking-[-0.02em]">What ran here this week</h2>
             </div>
-            <div className="mt-2 flex h-[230px] flex-col">
-              {dayStart ? <RunsLine series={series} /> : <div className="mt-3 flex-1 animate-pulse rounded-lg bg-panel-3/40" />}
-            </div>
+            <Link href="/runs" className="btn btn-ghost">All runs <ArrowRight size={14} /></Link>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-[15px] font-semibold">Run outcomes</h3>
-              <Link href="/runs" className="flex items-center gap-1 text-[12px] text-muted hover:text-fg">All runs <ArrowRight size={12} /></Link>
-            </div>
-            <div className="mt-4 flex items-center gap-5">
-              <Donut
-                parts={statusOrder.filter((k) => byStatus[k]).map((k) => [k, byStatus[k], statusColors[k] ?? "#71717a"])}
-                size={124}
-                center={<><div className="text-[22px] font-semibold tabular-nums leading-none tracking-tight">{finished ? `${Math.round((done / finished) * 100)}%` : "–"}</div><div className="mt-1 text-[9.5px] font-medium tracking-wider text-dim uppercase">success</div></>}
-              />
-              <ul className="min-w-0 flex-1 space-y-2 text-[11px]">
-                {statusOrder.filter((k) => byStatus[k]).map((k) => (
-                  <li key={k}>
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="flex-1 capitalize text-muted">{k}</span><span className="font-mono tabular-nums text-fg">{byStatus[k]}</span><span className="w-8 text-right font-mono text-dim">{Math.round((byStatus[k] / (runs.length || 1)) * 100)}%</span></div>
-                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(byStatus[k] / (runs.length || 1)) * 100}%`, background: statusColors[k] ?? "#71717a" }} /></div>
-                  </li>
-                ))}
-                {!runs.length && <li className="text-dim">no runs yet</li>}
-              </ul>
-            </div>
-            <ul className="mt-5 divide-y divide-edge border-t border-edge text-[12px]">
-              {runs.slice(0, 5).map((r) => (
-                <li key={r.id}>
-                  <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 py-2 transition hover:text-accent">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} />
-                    <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
-                    <span className="shrink-0 text-dim">{r.status}</span>
-                    <span className="w-14 shrink-0 text-right font-mono text-[10.5px] text-dim">{ago(r.created_at)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            {paused.length > 0 && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-pink-400/25 bg-pink-400/[.06] px-3 py-2 text-[12px]">
-                <UserRound size={13} className="text-pink-300" />
-                <span className="text-fg">{paused.length} run{paused.length > 1 ? "s" : ""} waiting on you</span>
-                <Link href={`/graphs/${paused[0].graph_id}`} className="ml-auto flex items-center gap-1 text-pink-300 hover:underline">Open <ArrowRight size={12} /></Link>
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="card p-4">
+                <div className="flex items-baseline justify-between gap-4">
+                  <h3 className="text-[15px] font-semibold">Runs, last 7 days</h3>
+                  <span className="font-mono text-[11px] text-dim">{runs7} runs · ${cost7.toFixed(5)}</span>
+                </div>
+                <div className="flex h-[200px] flex-col">
+                  {dayStart ? <RunsLine series={series} /> : <div className="mt-3 flex-1 animate-pulse rounded-lg bg-panel-3/40" />}
+                </div>
+                <div className="mt-3 grid grid-cols-2 divide-x divide-edge border-t border-edge pt-3 text-[11px] md:grid-cols-4">
+                  {[
+                    [String(runs7), "runs this week"],
+                    [`$${cost7.toFixed(5)}`, "spent this week"],
+                    [`${graphsWithRuns} / ${graphs.length}`, "graphs with runs"],
+                    [`${tokIn.toLocaleString()} / ${tokOut.toLocaleString()}`, "tokens in / out"],
+                  ].map(([v, l], i) => (
+                    <div key={l} className={i ? "px-3" : "pr-3"}><div className="font-mono text-[13px] text-fg">{v}</div><div className="text-dim">{l}</div></div>
+                  ))}
+                </div>
               </div>
-            )}
+              <div className="card p-4">
+                <div className="mb-2 flex items-baseline justify-between"><h3 className="text-[15px] font-semibold">Recently edited</h3><Link href="/graphs" className="flex items-center gap-1 text-[12px] text-muted hover:text-fg">All graphs <ArrowRight size={12} /></Link></div>
+                <ul className="-mx-2 divide-y divide-edge">
+                  {recent.map((g) => (
+                    <li key={g.id}>
+                      <Link href={`/graphs/${g.id}`} className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs transition hover:bg-panel-2">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-panel-3 text-muted ring-1 ring-edge-2 transition group-hover:bg-accent/15 group-hover:text-accent"><Workflow size={12} /></span>
+                        <span className="min-w-0 flex-1 truncate font-medium text-fg">{g.name}</span>
+                        <span className="hidden font-mono text-[10.5px] text-dim sm:inline">{g.nodes} nodes</span>
+                        {g.issues > 0 ? <span className="pill bg-amber-400/10 text-amber-300">{g.issues} issue{g.issues > 1 ? "s" : ""}</span> : <span className="pill bg-emerald-400/10 text-emerald-300">ready</span>}
+                        <span className="w-16 shrink-0 text-right text-[10.5px] text-dim">{ago(g.updated_at)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                  {!recent.length && <li className="px-2 py-2 text-[11px] text-dim">No graphs yet.</li>}
+                </ul>
+              </div>
+            </div>
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="card p-4">
+                <div className="mb-3 flex items-baseline justify-between"><h3 className="text-[15px] font-semibold">Run outcomes</h3><span className="font-mono text-[11px] text-dim">{runs.length} runs</span></div>
+                <div className="flex items-center gap-5">
+                  <Donut
+                    parts={statusOrder.filter((k) => byStatus[k]).map((k) => [k, byStatus[k], statusColors[k] ?? "#71717a"])}
+                    size={116}
+                    center={<><div className="text-[20px] font-semibold tabular-nums leading-none tracking-tight">{finished ? `${Math.round((done / finished) * 100)}%` : "–"}</div><div className="mt-1 text-[9px] font-medium tracking-wider text-dim uppercase">success</div></>}
+                  />
+                  <ul className="min-w-0 flex-1 space-y-2 text-[11px]">
+                    {statusOrder.filter((k) => byStatus[k]).map((k) => (
+                      <li key={k}>
+                        <div className="flex items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColors[k] ?? "#71717a" }} /><span className="flex-1 capitalize text-muted">{k}</span><span className="font-mono tabular-nums text-fg">{byStatus[k]}</span><span className="w-8 text-right font-mono text-dim">{Math.round((byStatus[k] / (runs.length || 1)) * 100)}%</span></div>
+                        <div className="mt-1 h-1 overflow-hidden rounded-full bg-panel-3"><div className="h-full rounded-full" style={{ width: `${(byStatus[k] / (runs.length || 1)) * 100}%`, background: statusColors[k] ?? "#71717a" }} /></div>
+                      </li>
+                    ))}
+                    {!runs.length && <li className="text-dim">no runs yet</li>}
+                  </ul>
+                </div>
+                <ul className="mt-3 divide-y divide-edge border-t border-edge text-[12px]">
+                  {runs.slice(0, 4).map((r) => (
+                    <li key={r.id}>
+                      <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2 py-1.5 transition hover:text-accent">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${runTone[r.status] ?? "bg-zinc-500"}`} />
+                        <span className="min-w-0 flex-1 truncate text-fg">{nameOf[r.graph_id] ?? "graph"}</span>
+                        <span className="shrink-0 text-dim">{r.status}</span>
+                        <span className="w-14 shrink-0 text-right font-mono text-[10.5px] text-dim">{ago(r.created_at)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {paused.length > 0 && (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg border border-pink-400/25 bg-pink-400/[.06] px-3 py-2 text-[12px]">
+                    <UserRound size={13} className="text-pink-300" />
+                    <span className="text-fg">{paused.length} run{paused.length > 1 ? "s" : ""} waiting on you</span>
+                    <Link href={`/graphs/${paused[0].graph_id}`} className="ml-auto flex items-center gap-1 text-pink-300 hover:underline">Open <ArrowRight size={12} /></Link>
+                  </div>
+                )}
+              </div>
+              <ModelsCard />
+            </div>
           </div>
         </div>
       </section>
@@ -689,6 +753,28 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
               );
             })}
             {!templates.length && <div className="col-span-full rounded-2xl border border-dashed border-edge p-8 text-center text-sm text-muted">No templates available.</div>}
+          </div>
+          <ol className="card mt-4 grid divide-y divide-edge md:grid-cols-4 md:divide-x md:divide-y-0">
+            {steps.map(([title, body], i) => (
+              <li key={title} className="flex items-start gap-3 p-4">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent font-mono text-[11px] font-bold text-accent-ink">{i + 1}</span>
+                <span><span className="block text-[13px] font-semibold">{title}</span><span className="block text-[11.5px] leading-relaxed text-muted">{body}</span></span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* cta */}
+      <section className="relative overflow-hidden border-b border-edge">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(50%_80%_at_50%_100%,black,transparent)]" />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 -bottom-40 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
+        <div className="relative mx-auto flex max-w-[1200px] flex-col items-center gap-4 px-6 py-14 text-center">
+          <h2 className="text-[32px] font-semibold tracking-[-0.03em]">Ready to debug your first agent?</h2>
+          <p className="max-w-xl text-[14px] text-muted">Pick a template or start blank. The first run costs a fraction of a cent on Groq's free tier.</p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+            <button onClick={onNew} className="btn btn-primary h-11 px-6 text-[14.5px]"><Plus size={16} strokeWidth={2.5} /> New graph</button>
+            <Link href="/guide" className="btn btn-ghost h-11 px-6 text-[14.5px]"><BookOpen size={15} className="text-accent" /> How it works</Link>
           </div>
         </div>
       </section>
