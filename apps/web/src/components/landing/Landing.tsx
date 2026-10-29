@@ -770,12 +770,13 @@ function Overview({ runs, graphs: graphsOrNull, templates, fromTemplate, onNew }
         <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(50%_80%_at_50%_100%,black,transparent)]" />
         <div aria-hidden className="pointer-events-none absolute left-1/2 -bottom-40 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
         <div className="relative mx-auto flex max-w-[1200px] flex-col items-center gap-4 px-6 py-14 text-center">
-          <h2 className="text-[32px] font-semibold tracking-[-0.03em]">Ready to debug your first agent?</h2>
-          <p className="max-w-xl text-[14px] text-muted">Pick a template or start blank. The first run costs a fraction of a cent on Groq's free tier.</p>
+          <h2 className="text-[32px] font-semibold tracking-[-0.03em]">See a run rewind in under a minute.</h2>
+          <p className="max-w-xl text-[14px] text-muted">Open the tweet-writer template, run it, answer the human gate, then fork from the draft step. The whole loop costs a fraction of a cent on Groq's free tier.</p>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-            <button onClick={onNew} className="btn btn-primary h-11 px-6 text-[14.5px]"><Plus size={16} strokeWidth={2.5} /> New graph</button>
+            <button onClick={() => fromTemplate("tweet-review")} className="btn btn-primary h-11 px-6 text-[14.5px]"><Play size={15} strokeWidth={2.5} /> Try the tweet-writer template</button>
             <Link href="/guide" className="btn btn-ghost h-11 px-6 text-[14.5px]"><BookOpen size={15} className="text-accent" /> How it works</Link>
           </div>
+          <span className="text-[11.5px] text-dim">6 nodes · model, human gate, router · about 2 model calls per run</span>
         </div>
       </section>
 
