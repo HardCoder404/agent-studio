@@ -252,18 +252,18 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  const width = `mx-auto w-full transition-[max-width] duration-500 ease-out ${scrolled ? "max-w-[1600px]" : "max-w-[1100px]"}`;
+  const width = `mx-auto w-full transition-[max-width] duration-500 ease-out ${scrolled ? "max-w-[1600px]" : "max-w-[1240px]"}`;
   return (
     <header className="glass sticky top-0 z-30 border-b border-edge">
       <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-accent to-transparent" />
-      <div className={`${width} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4 md:px-6`}>
-        <Link href="/" className="flex items-center gap-2.5 justify-self-start">
+      <div className={`${width} relative flex h-14 items-center justify-between px-4 md:px-6`}>
+        <Link href="/" className="flex items-center gap-2.5">
           <Logo size="sm" />
           <span className="text-[14px] font-semibold tracking-tight">Agent Studio</span>
         </Link>
-        <nav className="hidden items-center gap-0.5 md:flex">
+        <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 md:flex">
           {items.map(([Icon, label, key]) => (
-            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent/10 text-accent ring-1 ring-accent/30" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}>
+            <Link key={key} href={VIEW_PATH[key]} data-active={view === key} className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition ${view === key ? "bg-accent/12 text-accent" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}>
               <Icon size={13} /> {label}
             </Link>
           ))}
@@ -271,10 +271,10 @@ function AppBar({ health, onImport, onNew }: { health: Health; onImport: () => v
         <select value={view} onChange={(e) => router.push(VIEW_PATH[e.target.value as View])} className="input w-auto py-1 text-xs md:hidden">
           {items.map(([, label, key]) => <option key={key} value={key}>{label}</option>)}
         </select>
-        <div className="flex items-center gap-3 justify-self-end">
+        <div className="flex items-center gap-3">
           <span className="hidden items-center gap-1.5 whitespace-nowrap text-[11.5px] text-muted sm:flex" title={health ? (online ? "Groq models connected" : "no model key configured") : "checking…"}>
             <span className={`h-1.5 w-1.5 rounded-full ${health ? (online ? "bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" : "bg-amber-400") : "bg-dim"}`} />
-            <span className={scrolled ? "inline" : "hidden 2xl:inline"}>{health ? (online ? "Models online" : "No model key") : "Checking"}</span>
+            <span className="whitespace-nowrap">{health ? (online ? "Models online" : "No model key") : "Checking"}</span>
           </span>
           <span className="hidden h-4 w-px bg-edge-2 sm:block" />
           <button onClick={onImport} className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-muted transition hover:text-fg" title="Import a graph JSON exported from the editor"><Upload size={13} /> Import</button>
