@@ -55,8 +55,9 @@ export function CodeField({ value, onChange, language, height = 120 }: Props) {
           scrollBeyondLastLine: false,
           folding: false,
           glyphMargin: false,
-          lineDecorationsWidth: language === "python" ? 8 : 0,
-          lineNumbersMinChars: 3,
+          // left gutter inside the box so text does not touch the border
+          lineDecorationsWidth: language === "python" ? 8 : 12,
+          lineNumbersMinChars: language === "python" ? 3 : 0,
           renderLineHighlight: "none",
           overviewRulerLanes: 0,
           hideCursorInOverviewRuler: true,
