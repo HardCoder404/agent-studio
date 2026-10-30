@@ -881,8 +881,22 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
           </button>
           <button onClick={onNew} className="btn btn-sm btn-primary"><Plus size={14} /> New</button>
         </div>
-        {graphs && graphs.length === 0 && <div className="p-10 text-center text-sm text-muted">No graphs yet. Pick a template or create a blank one.</div>}
-        {graphs && graphs.length > 0 && shown.length === 0 && <p className="px-3 py-6 text-center text-sm text-muted">Nothing matches “{q}”.</p>}
+        {graphs && graphs.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/20"><Workflow size={22} /></span>
+            <div className="text-[15px] font-semibold">No graphs yet</div>
+            <p className="max-w-sm text-[13px] text-muted">Pick a template to start from a working example, or create a blank graph and build it node by node.</p>
+            <div className="mt-1 flex items-center gap-2">
+              <button onClick={onNew} className="btn btn-primary"><Plus size={14} strokeWidth={2.5} /> New graph</button>
+              <Link href="/templates" className="btn btn-ghost"><Sparkles size={14} className="text-accent" /> Browse templates</Link>
+            </div>
+          </div>
+        ) : graphs && shown.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-10 text-center">
+            <Search size={20} className="text-dim" />
+            <p className="text-sm text-muted">Nothing matches “{q}”{onlyReady ? " among ready graphs" : ""}.</p>
+          </div>
+        ) : (
         <table className="w-full text-sm">
           <thead className="bg-panel-2/60">
             <tr className="eyebrow">
@@ -943,6 +957,7 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
             ))}
           </tbody>
         </table>
+        )}
         <Pager
           page={page}
           pages={pages}
