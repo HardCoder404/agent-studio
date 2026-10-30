@@ -1023,6 +1023,14 @@ function RunsView({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] })
             ))}
           </div>
         </div>
+        {!rows.length ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/20"><Activity size={22} /></span>
+            <div className="text-[15px] font-semibold">{runs.length ? `No ${filter} runs` : "No runs yet"}</div>
+            <p className="max-w-sm text-[13px] text-muted">{runs.length ? "Try another status filter." : "Open a graph and press Run (⌘↵). Every run shows up here with its status, time and cost."}</p>
+            {!runs.length && <Link href="/graphs" className="btn btn-ghost mt-1"><Workflow size={14} className="text-accent" /> Go to graphs</Link>}
+          </div>
+        ) : (
         <table className="w-full text-sm">
           <thead className="bg-panel-2/60">
             <tr className="eyebrow">
@@ -1035,7 +1043,6 @@ function RunsView({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] })
             </tr>
           </thead>
           <tbody>
-            {!rows.length && <tr><td colSpan={6} className="px-3 py-8 text-center text-xs text-muted">No runs yet. Open a graph and press Run.</td></tr>}
             {rows.map((r) => (
               <tr key={r.id} className="group border-t border-edge transition hover:bg-panel-2/70">
                 <td className="max-w-0 px-3 py-2">
@@ -1054,6 +1061,7 @@ function RunsView({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] })
             ))}
           </tbody>
         </table>
+        )}
         <Pager page={pg} pages={pages} setPage={setPg} left={<span>{all.length} runs · total cost <b className="font-mono text-fg">${cost.toFixed(5)}</b></span>} />
       </div>
     </>
