@@ -160,12 +160,23 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const refresh = () => api.listGraphs().then(setGraphs).catch((e) => setError(String(e)));
+  const refresh = () => {
+    api.listGraphs().then(setGraphs).catch((e) => setError(String(e)));
+    fetch(`${API_URL}/runs?limit=200`).then((r) => r.json()).then(setRuns).catch(() => {});
+  };
   useEffect(() => {
     refresh();
     api.listTemplates().then(setTemplates).catch(() => {});
-    fetch(`${API_URL}/runs?limit=200`).then((r) => r.json()).then(setRuns).catch(() => {});
     fetch(`${API_URL}/health`).then((r) => r.json()).then(setHealth).catch(() => {});
+    // coming back to this tab (e.g. after editing or running in another tab) picks up the latest data
+    const onFocus = () => document.visibilityState === "visible" && refresh();
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh only reads stable setters
   }, []);
 
   const create = async () => router.push(`/graphs/${(await api.createGraph(starter)).id}`);
@@ -1013,7 +1024,7 @@ function RunsView({ runs, graphs }: { runs: RunInfo[]; graphs: GraphSummary[] })
             {rows.map((r) => (
               <tr key={r.id} className="group border-t border-edge transition hover:bg-panel-2/70">
                 <td className="max-w-0 px-3 py-2">
-                  <Link href={`/graphs/${r.graph_id}`} className="flex items-center gap-2">
+                  <Link href={nameOf[r.graph_id] ? `/graphs/${r.graph_id}` : "/runs"} className={`flex items-center gap-2 ${nameOf[r.graph_id] ? "" : "pointer-events-none opacity-60"}`}>
                     <span className="truncate text-[13px] font-medium text-fg">{nameOf[r.graph_id] ?? "deleted graph"}</span>
                     {r.parent_run_id && <span className="pill bg-violet-400/10 text-violet-300">fork</span>}
                     <span className="shrink-0 font-mono text-[10px] text-dim">{r.id.slice(0, 8)}</span>

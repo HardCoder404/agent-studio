@@ -145,9 +145,11 @@ export const useGraphStore = create<State & Actions>()(
         })),
       select: (id) =>
         set((s) => {
-          // keep React Flow's own selection flags in sync so the canvas ring follows programmatic selects
+          // keep React Flow's own selection flags in sync so the canvas ring follows programmatic selects;
+          // return nothing new when nothing changed so React Flow's onSelectionChange cannot ping-pong with us
           const needsSync = s.nodes.some((n) => !!n.selected !== (n.id === id));
-          return needsSync ? { selectedId: id, nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })) } : { selectedId: id };
+          if (!needsSync) return s.selectedId === id ? {} : { selectedId: id };
+          return { selectedId: id, nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })) };
         }),
 
       renameBranch: (nodeId, from, to) =>
