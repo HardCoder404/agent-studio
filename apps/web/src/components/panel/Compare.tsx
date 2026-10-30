@@ -34,6 +34,12 @@ export function Compare() {
   }, [graphId, status]);
 
   // default: A = current run, B = its parent (fork) or the previous run
+  // "thing: morning walk" style summary of the run input so runs are recognisable in the pickers
+  const inputLabel = (r: RunInfo) => {
+    const entries = Object.entries(r.input ?? {});
+    if (!entries.length) return "no input";
+    return entries.slice(0, 2).map(([k, v]) => `${k}: ${String(v).replace(/\s+/g, " ").slice(0, 28)}`).join(", ");
+  };
   const effA = aId ?? current;
   const effB = useMemo(() => {
     if (bId) return bId;
@@ -63,8 +69,8 @@ export function Compare() {
   const pick = (which: "a" | "b") => (
     <select value={(which === "a" ? effA : effB) ?? ""} onChange={(e) => (which === "a" ? setAId(e.target.value) : setBId(e.target.value))} className="max-w-[16rem] rounded border border-edge bg-panel-2 px-1 py-0.5 text-[11px] text-fg">
       {runs.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.id.slice(0, 8)} · {r.status} · {new Date(r.created_at).toLocaleTimeString()} {r.parent_run_id ? "(fork)" : ""}
+        <option key={r.id} value={r.id} disabled={r.id === (which === "a" ? effB : effA)}>
+          {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {r.status}{r.parent_run_id ? " · fork" : ""} · {inputLabel(r)}{r.id === (which === "a" ? effB : effA) ? " (already the other side)" : ""}
         </option>
       ))}
     </select>
