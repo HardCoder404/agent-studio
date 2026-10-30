@@ -1,14 +1,16 @@
 "use client";
 
+/** A labelled field. Deliberately a <div>, not a <label>: a <label> forwards clicks to its first form
+ *  control, which for a Monaco editor is its hidden IME textarea, so typing would be swallowed. */
 export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 flex items-baseline justify-between text-[11.5px] font-medium text-muted">
+    <div className="block">
+      <div className="mb-1.5 flex items-baseline justify-between text-[11.5px] font-medium text-muted">
         <span>{label}</span>
         {hint && <span className="font-mono text-[10px] font-normal text-dim">{hint}</span>}
-      </span>
+      </div>
       {children}
-    </label>
+    </div>
   );
 }
 

@@ -85,6 +85,9 @@ export function Canvas() {
       fitView
       fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
       deleteKeyCode={["Backspace", "Delete"]}
+      // Monaco's input is a <div>, not a form control, so React Flow would otherwise swallow Space
+      // typed into the inspector editors as its pan shortcut
+      panActivationKeyCode={null}
       onError={(code, message) => {
         // 008 = edge points at a handle that is not measured yet; happens for one frame after a
         // router branch is renamed, then updateNodeInternals catches up.

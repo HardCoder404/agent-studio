@@ -64,6 +64,8 @@ export function CodeField({ value, onChange, language, height = 120 }: Props) {
           padding: { top: 8, bottom: 8 },
           tabSize: 4,
           automaticLayout: true,
+          // classic <textarea> input: a real form control, so canvas shortcuts (Space, Backspace) never see it
+          editContext: false,
         }}
         loading={<div className="h-full bg-panel-2" style={{ height }} />}
       />
