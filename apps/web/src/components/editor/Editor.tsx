@@ -21,6 +21,9 @@ export function Editor() {
   const { id } = useParams<{ id: string }>();
   const load = useGraphStore((s) => s.load);
   const loaded = useGraphStore((s) => s.graphId === id);
+  // the store may still hold this graph from a previous visit (stale selection, measurements, undo
+  // history); never hand that to a fresh React Flow instance: reset, then wait for a fresh spec
+  const [fresh, setFresh] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   useAutosave();
@@ -53,17 +56,25 @@ export function Editor() {
   }, []);
 
   useEffect(() => {
+    useGraphStore.setState({ graphId: null, nodes: [], edges: [], selectedId: null, issues: [] });
+    useGraphStore.temporal.getState().clear();
+    let alive = true;
     api
       .getGraph(id)
       .then((spec) => {
+        if (!alive) return;
         load(spec);
         useGraphStore.temporal.getState().clear();
+        setFresh(true);
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => alive && setError(String(e)));
+    return () => {
+      alive = false;
+    };
   }, [id, load]);
 
   if (error) return <div className="p-6 text-sm text-rose-300">Could not load graph: {error}</div>;
-  if (!loaded) return <div className="p-6 text-sm text-muted">Loading…</div>;
+  if (!fresh || !loaded) return <div className="p-6 text-sm text-muted">Loading…</div>;
 
   return (
     <ReactFlowProvider>
