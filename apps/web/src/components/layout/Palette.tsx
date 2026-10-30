@@ -20,6 +20,7 @@ const items: { type: NodeType; icon: LucideIcon; tile: string; group: "flow" | "
 
 export function Palette() {
   const addNode = useGraphStore((s) => s.addNode);
+  const hasStart = useGraphStore((s) => s.nodes.some((n) => n.type === "start"));
   const [q, setQ] = useState("");
   const visible = items.filter(({ type }) => (nodeMeta[type].title + " " + nodeMeta[type].hint).toLowerCase().includes(q.toLowerCase()));
   const { screenToFlowPosition, fitView } = useReactFlow();
@@ -63,14 +64,15 @@ export function Palette() {
                 {rows.map(({ type, icon: Icon, tile }) => (
                   <button
                     key={type}
-                    draggable
+                    disabled={type === "start" && hasStart}
+                    draggable={!(type === "start" && hasStart)}
                     onDragStart={(e) => {
                       e.dataTransfer.setData(DRAG_MIME, type);
                       e.dataTransfer.effectAllowed = "move";
                     }}
                     onClick={() => addAtCenter(type)}
-                    title={nodeMeta[type].hint}
-                    className="group flex cursor-grab items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition hover:border-edge-2 hover:bg-panel-2 active:cursor-grabbing"
+                    title={type === "start" && hasStart ? "A graph has exactly one Start node" : nodeMeta[type].hint}
+                    className="group flex cursor-grab items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition hover:border-edge-2 hover:bg-panel-2 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-transparent disabled:hover:bg-transparent"
                   >
                     <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${tile}`}>
                       <Icon size={14} />

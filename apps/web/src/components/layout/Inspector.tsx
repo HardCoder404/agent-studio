@@ -114,7 +114,7 @@ export function Inspector() {
   const [Icon, tile] = typeIcon[type];
 
   return (
-    <Shell title={nodeMeta[type].title} tabs={tabs} icon={<span className={`grid h-6 w-6 place-items-center rounded-md ${tile}`}><Icon size={13} /></span>} onDelete={type !== "start" ? () => removeNode(node.id) : undefined}>
+    <Shell title={nodeMeta[type].title} tabs={tabs} icon={<span className={`grid h-6 w-6 place-items-center rounded-md ${tile}`}><Icon size={13} /></span>} onDelete={type !== "start" || nodes.filter((n) => n.type === "start").length > 1 ? () => removeNode(node.id) : undefined}>
       <Field label="Label" hint={node.id}>
         <TextInput value={node.data.label} onChange={(e) => updateNode(node.id, { label: e.target.value })} />
       </Field>
