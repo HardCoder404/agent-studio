@@ -2,7 +2,8 @@
 # Postgres to Supabase (both free). See docs/deploy.md.
 services:
   - type: web
-    name: agent-studio-api
+    name: agent-studio-api-eu
+    region: frankfurt        # next to the Supabase project (eu-west-1); a region cannot be changed on an existing service
     runtime: docker
     dockerfilePath: apps/api/Dockerfile
     dockerContext: .

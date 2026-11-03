@@ -17,7 +17,9 @@ def _async_url(url: str) -> str:
     return url
 
 
-engine = create_async_engine(_async_url(settings.database_url), pool_pre_ping=True)
+# No pre-ping: it costs a full round trip per checkout, which hurts when the database is in another
+# datacenter. Recycling connections every 5 minutes covers pooler-side idle timeouts instead.
+engine = create_async_engine(_async_url(settings.database_url), pool_recycle=300)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
