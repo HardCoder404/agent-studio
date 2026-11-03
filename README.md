@@ -22,6 +22,7 @@ Most agent tools let you *build* a graph or *view* a trace. Agent Studio is the 
 | **Cost** | Per-node and per-model calls, tokens, p50/p95 latency and cost over recent runs, with a monthly projection. |
 | **Sandbox** | Code nodes run in a throwaway Docker container: no network, memory and pid caps, read-only filesystem, hard timeout. |
 | **Share** | Templates gallery, JSON import/export, duplicate, read-only share links with "copy to my graphs". |
+| **Triggers** | Every graph has a signed webhook URL: POST a JSON object and a run starts with it as input. Runs that pause at a human node are sent to Telegram with answer buttons, and pressing one resumes the run. `http_post` and `telegram_send` tools push results back out, so a whole loop can run without the browser. |
 
 <p>
 <img src="docs/state-diff.png" width="49%" alt="State inspector with a step diff"> <img src="docs/compare.png" width="49%" alt="Comparing a run with its fork">

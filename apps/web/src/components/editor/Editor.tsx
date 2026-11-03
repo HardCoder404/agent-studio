@@ -55,6 +55,22 @@ export function Editor() {
     };
   }, []);
 
+  // Deep link to a run (the Telegram "Open in Studio" button uses /graphs/{id}?run={runId})
+  useEffect(() => {
+    const runId = new URLSearchParams(window.location.search).get("run");
+    if (!runId) return;
+    let alive = true;
+    api
+      .getRun(runId)
+      .then((r) => {
+        if (alive && r.graph_id === id) useRunStore.getState().begin(r.id, r.status); // the socket replays from seq 0
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
   useEffect(() => {
     useGraphStore.setState({ graphId: null, nodes: [], edges: [], selectedId: null, issues: [] });
     useGraphStore.temporal.getState().clear();

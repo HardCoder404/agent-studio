@@ -27,6 +27,16 @@ Then set `CORS_ORIGINS` on Render to the Vercel URL and redeploy the API.
 Repository → Settings → Variables → `DEMO_API_URL=https://<render-url>`. The
 `keep-demo-awake` workflow pings `/health` every 10 minutes during the day.
 
+## 5. Triggers and Telegram approvals (optional)
+Webhooks need `WEBHOOK_SECRET` (any long random string; the blueprint generates one). Each graph's
+Triggers tab then shows its signed URL.
+
+For approvals from a phone: create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN` and
+`PUBLIC_API_URL=https://<render-url>` on the API and redeploy (the API registers the Telegram
+webhook on boot). Send `/start` to the bot: it replies with your chat id, which goes into
+`TELEGRAM_CHAT_ID`. From then on a run paused at a human node arrives as a message with
+Yes/No buttons, and the button resumes it.
+
 ## Local full stack
 ```bash
 cp .env.example .env   # add GROQ_API_KEY
