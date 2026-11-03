@@ -20,7 +20,7 @@ services:
       - key: LANGFUSE_SECRET_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: https://agent-studio.vercel.app   # replace with the Vercel URL
+        value: https://agent-studio-rouge-eta.vercel.app
       - key: CODE_SANDBOX
         value: inprocess     # Render free tier has no Docker daemon for the sandbox
       - key: DAILY_LLM_CALL_BUDGET
