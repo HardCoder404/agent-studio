@@ -927,7 +927,18 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((g) => (
+            {pageRows.map((g) => pendingDelete?.length === 1 && pendingDelete[0] === g.id ? (
+              <tr key={g.id} className="border-t border-edge bg-rose-400/[.07]">
+                <td colSpan={7} className="px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-rose-400/15 text-rose-300"><Trash2 size={13} /></span>
+                    <span className="min-w-0 flex-1 truncate text-[13px]"><b className="text-fg">Delete “{g.name}”?</b> <span className="text-muted">Its runs, checkpoints and evals go with it. This cannot be undone.</span></span>
+                    <button autoFocus onClick={() => setPendingDelete(null)} className="btn btn-sm btn-ghost">Cancel</button>
+                    <button onClick={confirmDelete} className="btn btn-sm btn-danger"><Trash2 size={12} /> Delete</button>
+                  </div>
+                </td>
+              </tr>
+            ) : (
               <tr key={g.id} className={`group border-t border-edge transition hover:bg-panel-2/70 ${sel.has(g.id) ? "bg-accent/5" : ""}`}>
                 <td className="px-3 py-2">
                   <button onClick={() => toggle(g.id)} className={sel.has(g.id) ? "text-accent" : "text-dim hover:text-fg"}>
@@ -952,20 +963,10 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-muted" title={new Date(g.updated_at).toLocaleString()}>{ago(g.updated_at)}</td>
                 <td className="px-3 py-2 text-right font-mono text-[11px] text-dim">v{g.version}</td>
                 <td className="px-3 py-2">
-                  <div className={`flex items-center justify-end gap-0.5 transition ${pendingDelete?.[0] === g.id ? "" : "opacity-0 group-hover:opacity-100"}`}>
+                  <div className="flex items-center justify-end gap-0.5 opacity-0 transition group-hover:opacity-100">
                     <Link href={`/graphs/${g.id}`} className="icon-btn" title="Open"><ArrowRight size={13} /></Link>
                     <button onClick={() => duplicate(g.id)} className="icon-btn" title="Duplicate"><Copy size={13} /></button>
-                    <span className="relative">
-                          <button onClick={() => (pendingDelete?.[0] === g.id ? setPendingDelete(null) : remove(g.id))} className={`icon-btn ${pendingDelete?.[0] === g.id ? "!text-rose-400" : "hover:!text-rose-400"}`} title="Delete"><Trash2 size={13} /></button>
-                          {pendingDelete?.length === 1 && pendingDelete[0] === g.id && (
-                            <span className="absolute right-0 bottom-full z-20 mb-1.5 flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-400/30 bg-panel px-2 py-1 text-[11px] shadow-xl shadow-black/50">
-                              <span className="text-rose-200">Delete?</span>
-                              <button onClick={confirmDelete} className="rounded-md bg-rose-400/25 px-1.5 py-0.5 font-medium text-rose-100 hover:bg-rose-400/40">Yes</button>
-                              <button onClick={() => setPendingDelete(null)} className="rounded-md px-1.5 py-0.5 text-muted hover:text-fg">No</button>
-                              <span aria-hidden className="absolute right-2.5 top-full h-2 w-2 -translate-y-1 rotate-45 border-r border-b border-rose-400/30 bg-panel" />
-                            </span>
-                          )}
-                        </span>
+                    <button onClick={() => remove(g.id)} className="icon-btn hover:!text-rose-400" title="Delete"><Trash2 size={13} /></button>
                   </div>
                 </td>
               </tr>
