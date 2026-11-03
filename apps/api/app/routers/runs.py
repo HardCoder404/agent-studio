@@ -84,6 +84,11 @@ async def create_run(body: RunCreate, db: Db) -> dict:
     graph = await db.get(Graph, body.graph_id)
     if graph is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "graph not found")
+    return _view(await start_run(db, graph, body.input))
+
+
+async def start_run(db: AsyncSession, graph: Graph, inputs: dict[str, Any]) -> Run:
+    """Validate, record and launch a run. Shared by the Run button and inbound webhooks."""
     spec = GraphSpec.model_validate(graph.spec)
     if issues := spec.lint_issues():
         raise HTTPException(
@@ -102,13 +107,13 @@ async def create_run(body: RunCreate, db: Db) -> dict:
         graph_version=graph.version,
         thread_id=str(uuid.uuid4()),
         status="queued",
-        input=body.input,
+        input=inputs,
     )
     db.add(run)
     await db.commit()
     await db.refresh(run)  # load server-generated timestamps before the session closes
     start_in_background(run.id, spec)
-    return _view(run)
+    return run
 
 
 _SUMMARY_BLANKS = {"input": {}, "output": None, "interrupt": None, "error": None}
@@ -159,12 +164,17 @@ async def resume_run(run_id: uuid.UUID, body: ResumeBody, db: Db) -> dict:
     run = await _get(db, run_id)
     if run.status != "paused":
         raise HTTPException(status.HTTP_409_CONFLICT, f"run is {run.status}, not paused")
+    return _view(await resume_paused(db, run, body.value))
+
+
+async def resume_paused(db: AsyncSession, run: Run, value: Any) -> Run:
+    """Continue a paused run with the human's answer. Shared by the gate UI and Telegram."""
     spec = await _spec_for(db, run)
     run.status = "queued"
     await db.commit()
     await db.refresh(run)
-    start_in_background(run.id, spec, body.value)
-    return _view(run)
+    start_in_background(run.id, spec, value)
+    return run
 
 
 @router.post("/{run_id}/cancel")

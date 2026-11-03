@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"  # comma separated
     rate_limit_per_minute: int = 120  # per client IP, mutating requests
     daily_llm_call_budget: int = 2000  # 0 = unlimited; protects a public demo's free tier
+    # Triggers: inbound webhooks are signed with this secret; empty disables them.
+    webhook_secret: str = ""
+    # Where this API is reachable from the internet (used to register the Telegram webhook).
+    public_api_url: str = ""
+    # Telegram approvals: a paused run is sent to this chat with Yes/No buttons.
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
 
 settings = Settings()

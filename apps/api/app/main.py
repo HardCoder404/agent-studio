@@ -5,7 +5,8 @@ from fastapi import FastAPI
 from app import middleware
 from app.engine import checkpointer, sandbox
 from app.engine.mcp import manager as mcp_manager
-from app.routers import evals, graphs, mcp, models, runs, stats, templates, tools, ws
+from app.integrations import telegram
+from app.routers import evals, graphs, hooks, mcp, models, runs, stats, templates, tools, ws
 from app.settings import settings
 
 
@@ -13,6 +14,7 @@ from app.settings import settings
 async def lifespan(_: FastAPI):
     await checkpointer.open_postgres(settings.database_url)
     await mcp.connect_all_enabled()
+    await telegram.ensure_webhook()
     yield
     await mcp_manager.close()
     await checkpointer.close()
@@ -32,6 +34,7 @@ app.include_router(evals.evals)
 app.include_router(stats.router)
 app.include_router(mcp.router)
 app.include_router(templates.router)
+app.include_router(hooks.router)
 
 
 @app.get("/health")

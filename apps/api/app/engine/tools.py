@@ -60,6 +60,47 @@ async def http_get(url: str, max_chars: int = 4000) -> str:
         return r.text[: int(max_chars)]
 
 
+@register(
+    "http_post", "POST JSON to a URL and return the first `max_chars` characters of the response"
+)
+async def http_post(
+    url: str,
+    body: dict | list | str | None = None,
+    headers: dict | None = None,
+    max_chars: int = 4000,
+) -> str:
+    url = str(url).strip()
+    if not url.lower().startswith(("http://", "https://")):
+        url = "https://" + url
+    hdrs = {"User-Agent": "agent-studio/0.1", **(headers or {})}
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        if isinstance(body, str):
+            r = await client.post(url, content=body, headers=hdrs)
+        else:
+            r = await client.post(url, json=body if body is not None else {}, headers=hdrs)
+        r.raise_for_status()
+        return r.text[: int(max_chars)]
+
+
+@register(
+    "telegram_send",
+    "Send `text` to your Telegram chat (needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)",
+)
+async def telegram_send(text: str, chat_id: str = "") -> str:
+    from app.integrations import telegram
+    from app.settings import settings
+
+    target = str(chat_id or settings.telegram_chat_id)
+    if not (settings.telegram_bot_token and target):
+        raise RuntimeError(
+            "telegram is not configured: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID"
+        )
+    res = await telegram.call("sendMessage", chat_id=target, text=str(text)[:4000])
+    if not res or not res.get("ok"):
+        raise RuntimeError(f"telegram send failed: {(res or {}).get('description', 'no response')}")
+    return f"sent to {target}"
+
+
 @register("echo", "Return its `text` argument unchanged (handy for testing)")
 async def echo(text: str = "") -> str:
     return text

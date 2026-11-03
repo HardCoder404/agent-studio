@@ -20,6 +20,14 @@ services:
         sync: false
       - key: LANGFUSE_SECRET_KEY
         sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true  # signs inbound webhook URLs
+      - key: PUBLIC_API_URL
+        sync: false          # this service's https URL, used to register the Telegram webhook
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
       - key: CORS_ORIGINS
         value: https://agent-studio-rouge-eta.vercel.app
       - key: CODE_SANDBOX
