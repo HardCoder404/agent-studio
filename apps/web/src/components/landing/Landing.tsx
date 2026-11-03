@@ -11,6 +11,11 @@ import { API_URL } from "@/lib/api";
 import { Logo } from "@/components/layout/Logo";
 import { useModels } from "@/lib/useCatalog";
 
+const REFRESH_MIN_MS = 30_000;
+const dashCache: { graphs: GraphSummary[] | null; runs: RunInfo[] | null; templates: TemplateInfo[] | null; health: Health; at: number } = {
+  graphs: null, runs: null, templates: null, health: null, at: 0,
+};
+
 const TemplatePreview = dynamic(() => import("@/components/editor/TemplatePreview").then((m) => m.TemplatePreview), {
   ssr: false,
   loading: () => <div className="grid h-full place-items-center text-xs text-dim">Loading preview…</div>,
@@ -152,31 +157,35 @@ function Pager({ page, pages, setPage, left }: { page: number; pages: number; se
 
 /** Shared shell for the landing routes: app bar, data, the right rail and the free-tier note. Pages render the view. */
 export function LandingShell({ children }: { children: React.ReactNode }) {
-  const [graphs, setGraphs] = useState<GraphSummary[] | null>(null);
-  const [templates, setTemplates] = useState<TemplateInfo[]>([]);
+  // Last good payloads survive route changes (editor and back), so the dashboard paints at once
+  // from memory and then refreshes in the background.
+  const [graphs, setGraphs] = useState<GraphSummary[] | null>(() => dashCache.graphs);
+  const [templates, setTemplates] = useState<TemplateInfo[]>(() => dashCache.templates ?? []);
   const [error, setError] = useState<string | null>(null);
-  const [runs, setRuns] = useState<RunInfo[]>([]);
-  const [health, setHealth] = useState<Health>(null);
+  const [runs, setRuns] = useState<RunInfo[]>(() => dashCache.runs ?? []);
+  const [health, setHealth] = useState<Health>(() => dashCache.health);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const refresh = () => {
-    api.listGraphs().then(setGraphs).catch((e) => setError(String(e)));
-    fetch(`${API_URL}/runs?limit=200`).then((r) => r.json()).then(setRuns).catch(() => {});
+  const refresh = (force = true) => {
+    if (!force && Date.now() - dashCache.at < REFRESH_MIN_MS) return;
+    dashCache.at = Date.now();
+    api.listGraphs().then((g) => setGraphs((dashCache.graphs = g))).catch((e) => setError(String(e)));
+    fetch(`${API_URL}/runs?limit=200&fields=summary`).then((r) => r.json()).then((r) => setRuns((dashCache.runs = r))).catch(() => {});
   };
   useEffect(() => {
     refresh();
-    api.listTemplates().then(setTemplates).catch(() => {});
-    fetch(`${API_URL}/health`).then((r) => r.json()).then(setHealth).catch(() => {});
-    // coming back to this tab (e.g. after editing or running in another tab) picks up the latest data
-    const onFocus = () => document.visibilityState === "visible" && refresh();
+    api.listTemplates().then((t) => setTemplates((dashCache.templates = t))).catch(() => {});
+    fetch(`${API_URL}/health`).then((r) => r.json()).then((h) => setHealth((dashCache.health = h))).catch(() => {});
+    // coming back to this tab (e.g. after editing or running in another tab) picks up the latest data,
+    // but a quick alt-tab within 30 s does not refetch everything
+    const onFocus = () => document.visibilityState === "visible" && refresh(false);
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("focus", onFocus);
     return () => {
       document.removeEventListener("visibilitychange", onFocus);
       window.removeEventListener("focus", onFocus);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh only reads stable setters
   }, []);
 
   const create = async () => router.push(`/graphs/${(await api.createGraph(starter)).id}`);

@@ -66,7 +66,12 @@ function useSimulatedRun(spec: GraphSpec, enabled: boolean): Record<string, Node
         t += 250;
       }
       at(t + 1800, () => { setStatuses({}); useRunStore.setState({ replayStatus: {} }); });
-      at(t + 2400, run);
+      // loop again, but not while the tab is hidden: wait for it to come back first
+      at(t + 2400, () => {
+        if (document.visibilityState === "visible") return run();
+        const once = () => { document.removeEventListener("visibilitychange", once); if (alive && document.visibilityState === "visible") run(); };
+        document.addEventListener("visibilitychange", once);
+      });
     };
     run();
     return () => {

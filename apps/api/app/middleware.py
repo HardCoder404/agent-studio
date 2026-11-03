@@ -15,6 +15,21 @@ from app.settings import settings
 
 _hits: dict[str, deque[float]] = defaultdict(deque)
 
+# Browser/CDN cache policy for read-only endpoints whose payload changes rarely. Catalogs only
+# change on deploy; health is polled by dashboards. Everything else stays uncached.
+_CACHE_RULES: tuple[tuple[str, str], ...] = (
+    ("/models", "public, max-age=300, stale-while-revalidate=3600"),
+    ("/templates", "public, max-age=300, stale-while-revalidate=3600"),
+    ("/health", "public, max-age=10"),
+)
+
+
+def cache_policy(path: str) -> str | None:
+    for prefix, policy in _CACHE_RULES:
+        if path == prefix or path.startswith(prefix + "/"):
+            return policy
+    return None
+
 
 def _client_ip(request: Request) -> str:
     fwd = request.headers.get("x-forwarded-for")
@@ -45,7 +60,12 @@ def install(app: FastAPI) -> None:
                     headers={"Retry-After": "60"},
                 )
             q.append(now)
-        return await call_next(request)
+        response = await call_next(request)
+        if request.method == "GET" and response.status_code == 200:
+            policy = cache_policy(request.url.path)
+            if policy and "cache-control" not in response.headers:
+                response.headers["Cache-Control"] = policy
+        return response
 
 
 class Budget:

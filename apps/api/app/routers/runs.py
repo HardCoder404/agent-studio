@@ -1,4 +1,5 @@
 import uuid
+from collections import OrderedDict
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -12,7 +13,7 @@ from app.db.tables import Graph, Run, RunEvent
 from app.engine import bus
 from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
-from app.engine.executor import CONTINUE, run_config, start_in_background
+from app.engine.executor import CONTINUE, TERMINAL, run_config, start_in_background
 from app.observability import langfuse_export
 from app.observability.trace import build_trace, to_otel_json
 from app.schemas.graph import GraphSpec
@@ -110,16 +111,28 @@ async def create_run(body: RunCreate, db: Db) -> dict:
     return _view(run)
 
 
+_SUMMARY_BLANKS = {"input": {}, "output": None, "interrupt": None, "error": None}
+
+
 @router.get("")
 async def list_runs(
-    db: Db, graph_id: uuid.UUID | None = None, status_: str | None = None, limit: int = 50
+    db: Db,
+    graph_id: uuid.UUID | None = None,
+    status_: str | None = None,
+    limit: int = 50,
+    fields: str | None = None,
 ) -> list[dict]:
-    q = select(Run).order_by(Run.created_at.desc()).limit(limit)
+    """`fields=summary` blanks the large per-run blobs (input, output, interrupt, error) for
+    dashboards that only chart status, usage and timing."""
+    q = select(Run).order_by(Run.created_at.desc()).limit(min(max(limit, 1), 500))
     if graph_id:
         q = q.where(Run.graph_id == graph_id)
     if status_:
         q = q.where(Run.status == status_)
-    return [_view(r) for r in (await db.execute(q)).scalars().all()]
+    rows = (await db.execute(q)).scalars().all()
+    if fields == "summary":
+        return [{**_view(r), **_SUMMARY_BLANKS} for r in rows]
+    return [_view(r) for r in rows]
 
 
 @router.get("/{run_id}")
@@ -168,6 +181,12 @@ async def cancel_run(run_id: uuid.UUID, db: Db) -> dict:
     return {**_view(run), "status": "cancelling"}
 
 
+# A finished run's checkpoint history never changes, yet the State tab, the fork dialog and
+# both sides of Compare all ask for it. Walking the thread is one round trip per checkpoint.
+_checkpoint_cache: OrderedDict[tuple[uuid.UUID, str], list[dict]] = OrderedDict()
+_CHECKPOINT_CACHE_MAX = 256
+
+
 @router.get("/{run_id}/checkpoints")
 async def get_checkpoints(run_id: uuid.UUID, db: Db) -> list[dict]:
     """This run's checkpoints, oldest first, with the state at each one.
@@ -178,6 +197,21 @@ async def get_checkpoints(run_id: uuid.UUID, db: Db) -> list[dict]:
     was edited by hand.
     """
     run = await _get(db, run_id)
+    cache_key = (run.id, run.head_checkpoint_id or "")
+    if run.status in TERMINAL and run.head_checkpoint_id:
+        cached = _checkpoint_cache.get(cache_key)
+        if cached is not None:
+            _checkpoint_cache.move_to_end(cache_key)
+            return cached
+    out = await _walk_checkpoints(db, run)
+    if run.status in TERMINAL and run.head_checkpoint_id:
+        _checkpoint_cache[cache_key] = out
+        while len(_checkpoint_cache) > _CHECKPOINT_CACHE_MAX:
+            _checkpoint_cache.popitem(last=False)
+    return out
+
+
+async def _walk_checkpoints(db: AsyncSession, run: Run) -> list[dict]:
     spec = await _spec_for(db, run)
     graph = compile_graph(spec, get_checkpointer())
 

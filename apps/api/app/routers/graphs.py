@@ -32,21 +32,41 @@ async def create_graph(body: GraphCreate, db: Db) -> GraphOut:
     return _out(spec)
 
 
+# Lint results per stored graph, keyed by what changes when the spec changes. Linting every spec
+# on every list call is O(graphs x nodes) of pure CPU; this makes the list a plain SELECT.
+_summary_cache: dict[tuple[UUID, int, object], tuple[int, int]] = {}
+_SUMMARY_CACHE_MAX = 2000
+
+
+def _counts(r: Graph) -> tuple[int, int]:
+    key = (r.id, r.version, r.updated_at)
+    hit = _summary_cache.get(key)
+    if hit is None:
+        if len(_summary_cache) >= _SUMMARY_CACHE_MAX:
+            _summary_cache.clear()
+        hit = (len(r.spec.get("nodes", [])), len(GraphSpec.model_validate(r.spec).lint_issues()))
+        _summary_cache[key] = hit
+    return hit
+
+
 @router.get("", response_model=list[dict])
 async def list_graphs(db: Db) -> list[dict]:
     rows = (await db.execute(select(Graph).order_by(Graph.updated_at.desc()))).scalars().all()
-    return [
-        {
-            "id": str(r.id),
-            "name": r.name,
-            "version": r.version,
-            "nodes": len(r.spec.get("nodes", [])),
-            "issues": len(GraphSpec.model_validate(r.spec).lint_issues()),
-            "shared": bool(r.share_token),
-            "updated_at": r.updated_at,
-        }
-        for r in rows
-    ]
+    out = []
+    for r in rows:
+        nodes, issues = _counts(r)
+        out.append(
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "version": r.version,
+                "nodes": nodes,
+                "issues": issues,
+                "shared": bool(r.share_token),
+                "updated_at": r.updated_at,
+            }
+        )
+    return out
 
 
 async def _get(db: AsyncSession, graph_id: UUID) -> Graph:

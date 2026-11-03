@@ -32,8 +32,13 @@ export function Timeline() {
   const live = !!runId && !isTerminal(status);
   useEffect(() => {
     if (!live) return;
-    const id = setInterval(() => setTick((t) => t + 1), 250);
-    return () => clearInterval(id);
+    let id: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!id) id = setInterval(() => setTick((t) => t + 1), 250); };
+    const stop = () => { if (id) { clearInterval(id); id = null; } };
+    const onVis = () => (document.visibilityState === "visible" ? start() : stop());
+    onVis();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [live]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- tick forces a recompute of open spans

@@ -1,10 +1,10 @@
 name: keep-demo-awake
 
 # Free hosting tiers sleep after ~15 minutes idle. A ping every 10 minutes keeps the demo
-# responsive during the day; it is skipped at night (IST) to stay inside free hours.
+# responsive around the clock (a public repo has free Actions minutes).
 on:
   schedule:
-    - cron: "*/10 2-18 * * *"   # 07:30–23:30 IST
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
