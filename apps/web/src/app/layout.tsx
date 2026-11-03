@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Build, run and debug multi-agent workflows.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="h-full font-sans">{children}</body>
