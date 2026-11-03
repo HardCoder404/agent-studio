@@ -13,7 +13,8 @@ from app.settings import settings
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", _async_url(settings.database_url))
+# configparser treats "%" as interpolation, so a percent-encoded password (e.g. %40 for "@") must be escaped.
+config.set_main_option("sqlalchemy.url", _async_url(settings.database_url).replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
