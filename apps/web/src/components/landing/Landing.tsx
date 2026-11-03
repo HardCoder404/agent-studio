@@ -955,11 +955,17 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
                   <div className={`flex items-center justify-end gap-0.5 transition ${pendingDelete?.[0] === g.id ? "" : "opacity-0 group-hover:opacity-100"}`}>
                     <Link href={`/graphs/${g.id}`} className="icon-btn" title="Open"><ArrowRight size={13} /></Link>
                     <button onClick={() => duplicate(g.id)} className="icon-btn" title="Duplicate"><Copy size={13} /></button>
-                    {pendingDelete?.length === 1 && pendingDelete[0] === g.id ? (
-                          <span className="flex items-center gap-1 rounded-lg border border-rose-400/30 bg-rose-400/10 px-1.5 py-0.5 text-[11px]"><span className="text-rose-200">Delete?</span><button onClick={confirmDelete} className="rounded-md bg-rose-400/25 px-1.5 py-0.5 font-medium text-rose-100 hover:bg-rose-400/40">Yes</button><button onClick={() => setPendingDelete(null)} className="rounded-md px-1.5 py-0.5 text-muted hover:text-fg">No</button></span>
-                        ) : (
-                          <button onClick={() => remove(g.id)} className="icon-btn hover:!text-rose-400" title="Delete"><Trash2 size={13} /></button>
-                        )}
+                    <span className="relative">
+                          <button onClick={() => (pendingDelete?.[0] === g.id ? setPendingDelete(null) : remove(g.id))} className={`icon-btn ${pendingDelete?.[0] === g.id ? "!text-rose-400" : "hover:!text-rose-400"}`} title="Delete"><Trash2 size={13} /></button>
+                          {pendingDelete?.length === 1 && pendingDelete[0] === g.id && (
+                            <span className="absolute right-0 bottom-full z-20 mb-1.5 flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-400/30 bg-panel px-2 py-1 text-[11px] shadow-xl shadow-black/50">
+                              <span className="text-rose-200">Delete?</span>
+                              <button onClick={confirmDelete} className="rounded-md bg-rose-400/25 px-1.5 py-0.5 font-medium text-rose-100 hover:bg-rose-400/40">Yes</button>
+                              <button onClick={() => setPendingDelete(null)} className="rounded-md px-1.5 py-0.5 text-muted hover:text-fg">No</button>
+                              <span aria-hidden className="absolute right-2.5 top-full h-2 w-2 -translate-y-1 rotate-45 border-r border-b border-rose-400/30 bg-panel" />
+                            </span>
+                          )}
+                        </span>
                   </div>
                 </td>
               </tr>
