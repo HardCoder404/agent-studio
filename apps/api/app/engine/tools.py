@@ -51,6 +51,9 @@ async def current_time() -> str:
 
 @register("http_get", "GET a URL and return the first `max_chars` characters of the body")
 async def http_get(url: str, max_chars: int = 4000) -> str:
+    url = str(url).strip()
+    if not url.lower().startswith(("http://", "https://")):
+        url = "https://" + url
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
         r = await client.get(url, headers={"User-Agent": "agent-studio/0.1"})
         r.raise_for_status()

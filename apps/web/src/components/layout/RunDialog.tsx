@@ -36,7 +36,7 @@ export function RunDialog({ onClose }: Props) {
   const submit = async () => {
     let input: Record<string, unknown>;
     try {
-      input = raw ? JSON.parse(rawText) : values;
+      input = raw ? JSON.parse(rawText) : Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()]));
     } catch {
       setError("input is not valid JSON");
       return;
