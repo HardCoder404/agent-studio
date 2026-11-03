@@ -841,10 +841,15 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
   const pageRows = shown.slice(cur * PAGE, cur * PAGE + PAGE);
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const duplicate = async (id: string) => { await api.duplicateGraph(id); refresh(); };
-  const remove = async (id: string) => { await api.deleteGraph(id); refresh(); };
-  const removeMany = async () => {
-    await Promise.all([...sel].map((id) => api.deleteGraph(id)));
-    setSel(new Set());
+  // deletes go through a confirm dialog: ids to delete, or null when closed
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
+  const remove = (id: string) => setPendingDelete([id]);
+  const removeMany = () => setPendingDelete([...sel]);
+  const confirmDelete = async () => {
+    const ids = pendingDelete ?? [];
+    setPendingDelete(null);
+    await Promise.all(ids.map((id) => api.deleteGraph(id)));
+    setSel((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
     refresh();
   };
   const all = graphs ?? [];
@@ -973,6 +978,25 @@ function GraphsView({ graphs, refresh, onNew }: { graphs: GraphSummary[] | null;
           )}
         />
       </div>
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onMouseDown={() => setPendingDelete(null)}>
+          <div role="dialog" aria-modal="true" className="card w-[26rem] p-5 shadow-2xl shadow-black/60" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-400/10 text-rose-300 ring-1 ring-rose-400/25"><Trash2 size={18} /></span>
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-semibold tracking-tight">Delete {pendingDelete.length === 1 ? "this graph" : `${pendingDelete.length} graphs`}?</h2>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted">
+                  {pendingDelete.length === 1 ? <><b className="text-fg">{all.find((g) => g.id === pendingDelete[0])?.name ?? "This graph"}</b> and all of its runs, checkpoints and evals will be removed. This cannot be undone.</> : "All of their runs, checkpoints and evals will be removed. This cannot be undone."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button autoFocus onClick={() => setPendingDelete(null)} className="btn btn-ghost">Cancel</button>
+              <button onClick={confirmDelete} className="btn btn-danger"><Trash2 size={13} /> Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
