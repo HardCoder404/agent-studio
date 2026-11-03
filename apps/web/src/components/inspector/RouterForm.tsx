@@ -2,6 +2,7 @@
 
 import { Plus, X } from "lucide-react";
 import type { RouterConfig } from "@/lib/types";
+import { inputKeys } from "@/lib/graphUtils";
 import { useModels } from "@/lib/useCatalog";
 import { useGraphStore } from "@/store/graph";
 import { Field, Select, TextInput } from "./Field";
@@ -9,6 +10,7 @@ import { Field, Select, TextInput } from "./Field";
 type Props = { nodeId: string; config: RouterConfig; vars: string[]; onChange: (patch: Partial<RouterConfig>) => void };
 
 export function RouterForm({ nodeId, config, vars, onChange }: Props) {
+  const runInputs = useGraphStore((st) => inputKeys(st.nodes));
   const models = useModels();
   const renameBranch = useGraphStore((s) => s.renameBranch);
   const removeBranch = useGraphStore((s) => s.removeBranch);
@@ -51,10 +53,10 @@ export function RouterForm({ nodeId, config, vars, onChange }: Props) {
       <Field label={isLLM ? "Decide using variable" : "Variables in scope"} hint={isLLM ? undefined : vars.join(", ") || "none upstream"}>
         {isLLM ? (
           <Select value={config.input_key} onChange={(e) => onChange({ input_key: e.target.value })}>
-            {![...vars, config.input_key].length && <option value="">—</option>}
-            {[...new Set([config.input_key, ...vars])].map((k) => (
+            {![...vars, ...runInputs, config.input_key].length && <option value="">—</option>}
+            {[...new Set([config.input_key, ...vars, ...runInputs])].map((k) => (
               <option key={k} value={k}>
-                {k}
+                {k}{runInputs.includes(k) && !vars.includes(k) ? " (run input)" : ""}
               </option>
             ))}
           </Select>
