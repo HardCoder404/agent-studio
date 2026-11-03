@@ -4,6 +4,8 @@
 
 Most agent tools let you *build* a graph or *view* a trace. Agent Studio is the debugger in between: every run is checkpointed, so you can scrub back through it, change a variable, and continue from that exact point in a new run while the original stays untouched. Evals, model sweeps, MCP tools and cost tracking are built in.
 
+**Live demo:** [agent-studio-rouge-eta.vercel.app](https://agent-studio-rouge-eta.vercel.app) · API on a free Render instance, so the first request after idle can take ~50 s.
+
 ![Run a workflow, answer the human gate, fork from a checkpoint with an edited draft, compare the two runs](docs/demo.gif)
 
 ## What you can do
