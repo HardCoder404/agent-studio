@@ -264,3 +264,9 @@ export type MCPServerInfo = {
 export type MCPServerBody = { name: string; transport: "stdio" | "http"; command?: string; args?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> };
 
 export type TemplateInfo = { id: string; name: string; description: string; nodes: number; node_types: NodeType[] };
+
+/** GET /graphs/{id}/triggers: ways to start or continue a graph without the UI. */
+export type TriggersInfo = {
+  webhook: { enabled: boolean; url: string | null; method: "POST"; hint: string };
+  telegram: { enabled: boolean; hint: string };
+};

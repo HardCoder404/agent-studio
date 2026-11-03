@@ -1,4 +1,4 @@
-import type { Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphStats, MCPServerBody, MCPServerInfo, Sweep, SweepSummary, TemplateInfo, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
+import type { TriggersInfo, Checkpoint, Dataset, DatasetRow, EvalResultRow, EvalRunInfo, GraphSpec, GraphStats, MCPServerBody, MCPServerInfo, Sweep, SweepSummary, TemplateInfo, GraphSummary, ModelInfo, RunEvent, RunInfo, ScorerSpec, SpecEdge, SpecNode, ToolInfo } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const WS_URL = API_URL.replace(/^http/, "ws");
@@ -72,4 +72,5 @@ export const api = {
   resumeRun: (id: string, value: unknown) => request<RunInfo>(`/runs/${id}/resume`, { method: "POST", body: JSON.stringify({ value }) }),
   cancelRun: (id: string) => request<RunInfo>(`/runs/${id}/cancel`, { method: "POST" }),
   listTools: () => request<ToolInfo[]>("/tools"),
+  getTriggers: (graphId: string) => request<TriggersInfo>(`/graphs/${graphId}/triggers`),
 };
