@@ -79,7 +79,8 @@ def build_message(run_id: uuid.UUID, graph_id: uuid.UUID, graph_name: str, intr:
         lines += ["", f"<i>{_esc(str(k))}</i>", _esc(_fmt(v))]
     answers = quick_answers(question)
     keyboard = [[{"text": a.capitalize(), "callback_data": f"r:{run_id}:{a}"} for a in answers]]
-    if web_url():
+    # Telegram rejects non-https button URLs (e.g. http://localhost in dev), so the link is optional.
+    if web_url().startswith("https://"):
         keyboard.append(
             [{"text": "Open in Studio", "url": f"{web_url()}/graphs/{graph_id}?run={run_id}"}]
         )

@@ -120,6 +120,25 @@ async def test_start_message_replies_with_chat_id(client, triggers):
     assert method == "sendMessage" and payload["chat_id"] == 4242 and "4242" in payload["text"]
 
 
+def test_open_link_only_for_https(monkeypatch):
+    import uuid
+
+    monkeypatch.setattr(settings, "telegram_chat_id", "1")
+    monkeypatch.setattr(settings, "cors_origins", "http://localhost:3000")
+    intr = {"question": "ok? (yes/no)"}
+    kb = telegram.build_message(uuid.uuid4(), uuid.uuid4(), "g", intr)["reply_markup"][
+        "inline_keyboard"
+    ]
+    assert len(kb) == 1  # answers only, no localhost link
+    monkeypatch.setattr(
+        settings, "cors_origins", "https://studio.example.com, http://localhost:3000"
+    )
+    kb = telegram.build_message(uuid.uuid4(), uuid.uuid4(), "g", intr)["reply_markup"][
+        "inline_keyboard"
+    ]
+    assert kb[1][0]["url"].startswith("https://studio.example.com/graphs/")
+
+
 def test_quick_answers():
     assert telegram.quick_answers("Approve this draft? (yes/no)") == ["yes", "no"]
     assert telegram.quick_answers("Pick one (ship/revise/drop)") == ["ship", "revise", "drop"]
