@@ -57,15 +57,18 @@ export function Canvas() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el.closest("input, textarea, [contenteditable=true]")) return;
+      // typing in a real field (including Monaco's own textarea while its editor is focused) keeps the
+      // browser/Monaco undo; anywhere else ⌘Z is the graph undo, even if Monaco left its textarea focused
+      const inField = el.closest("input, select, [contenteditable=true]") || (el.closest("textarea") && el.closest(".monaco-editor")?.contains(document.activeElement) && document.querySelector(".monaco-editor.focused"));
+      if (inField) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) temporal.getState().redo();
         else temporal.getState().undo();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [temporal]);
 
   return (
