@@ -95,11 +95,16 @@ export const useGraphStore = create<State & Actions>()(
       setName: (name) => set({ name, save: "dirty" }),
 
       onNodesChange: (changes) => {
-        const structural = changes.some((c) => c.type !== "select" && c.type !== "dimensions");
+        // only a finished drag, add or remove is an undo step; selection, measuring and the intermediate
+        // frames of a drag would otherwise flood the history and make "undo the add" land on a measured copy
+        const structural = changes.some((c) => c.type !== "select" && c.type !== "dimensions" && !(c.type === "position" && c.dragging));
+        const temporal = useGraphStore.temporal.getState();
+        if (!structural) temporal.pause();
         set((s) => ({
           nodes: applyNodeChanges(changes, s.nodes),
           ...(structural ? { save: "dirty" as const } : {}),
         }));
+        if (!structural) temporal.resume();
       },
       onEdgesChange: (changes) => {
         const structural = changes.some((c) => c.type !== "select");
@@ -189,7 +194,7 @@ export const useGraphStore = create<State & Actions>()(
     }),
     {
       // undo/redo tracks only what the user edits, not selection or save status
-      partialize: (s) => ({ nodes: s.nodes, edges: s.edges, name: s.name }),
+      partialize: (s) => ({ nodes: s.nodes.map(({ selected: _s, measured: _m, dragging: _d, ...n }) => n), edges: s.edges, name: s.name }),
       limit: 100,
       equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),
     },
