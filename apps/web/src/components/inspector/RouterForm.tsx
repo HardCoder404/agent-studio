@@ -4,13 +4,15 @@ import { Plus, X } from "lucide-react";
 import type { RouterConfig } from "@/lib/types";
 import { inputKeys } from "@/lib/graphUtils";
 import { useModels } from "@/lib/useCatalog";
+import { useShallow } from "zustand/react/shallow";
 import { useGraphStore } from "@/store/graph";
 import { Field, Select, TextInput } from "./Field";
 
 type Props = { nodeId: string; config: RouterConfig; vars: string[]; onChange: (patch: Partial<RouterConfig>) => void };
 
 export function RouterForm({ nodeId, config, vars, onChange }: Props) {
-  const runInputs = useGraphStore((st) => inputKeys(st.nodes));
+  // useShallow: inputKeys builds a fresh array each call; compare contents so the selector is stable
+  const runInputs = useGraphStore(useShallow((st) => inputKeys(st.nodes)));
   const models = useModels();
   const renameBranch = useGraphStore((s) => s.renameBranch);
   const removeBranch = useGraphStore((s) => s.removeBranch);
