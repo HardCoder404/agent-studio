@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Copy, Play, Send, Webhook } from "lucide-react";
+import QRCode from "qrcode";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { inputKeys } from "@/lib/graphUtils";
@@ -53,6 +54,16 @@ export function Triggers() {
     return () => clearInterval(id);
   }, [waiting, graphId]);
   const startWaiting = () => setWaiting(true);
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    const url = info?.telegram.connect_url;
+    if (!url || info?.telegram.linked) return;
+    let alive = true;
+    QRCode.toDataURL(url, { margin: 0, width: 168, color: { dark: "#111113", light: "#ffffff" } })
+      .then((d) => alive && setQr(d))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [info?.telegram.connect_url, info?.telegram.linked]);
   const unlink = async () => {
     if (!graphId) return;
     await api.unlinkTelegram(graphId).catch(() => {});
@@ -147,6 +158,21 @@ export function Triggers() {
               ) : null}
               {waiting && !info.telegram.linked && <span className="text-muted">press <span className="font-mono text-fg">Start</span> in the bot, this updates by itself</span>}
             </div>
+            {!info.telegram.linked && info.telegram.connect_url && (
+              <div className="mt-2 flex items-start gap-3 border-t border-edge pt-2">
+                {/* eslint-disable-next-line @next/next/no-img-element -- data URL, nothing to optimise */}
+                {qr && <img src={qr} alt="QR code that opens the bot" width={84} height={84} className="shrink-0 rounded-md bg-white p-1" />}
+                <div className="min-w-0 text-muted">
+                  <div>No Telegram app on this computer? Scan the code with your phone, or open <span className="font-mono text-fg">@{info.telegram.connect_url.replace("https://t.me/", "").split("?")[0]}</span> in Telegram and send:</div>
+                  {info.telegram.start_command && (
+                    <div className="mt-1 flex items-center gap-1 rounded-md border border-edge bg-canvas px-2 py-1">
+                      <code className="min-w-0 flex-1 truncate font-mono text-fg" title={info.telegram.start_command}>{info.telegram.start_command}</code>
+                      <CopyButton text={info.telegram.start_command} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
         <p className="mt-2 text-muted">

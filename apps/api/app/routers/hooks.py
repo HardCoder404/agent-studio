@@ -53,6 +53,7 @@ def _telegram_view(graph: Graph) -> dict:
         "bot": True,
         "linked": False,
         "connect_url": telegram.connect_url(graph.id),
+        "start_command": f"/start {telegram.link_param(graph.id)}",
         "hint": "Connect your Telegram: the bot opens, press Start, and this graph's approvals come to you.",
     }
 
