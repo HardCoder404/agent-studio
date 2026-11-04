@@ -35,6 +35,30 @@ export function Triggers() {
   const [error, setError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(false);
+
+  const reload = () => graphId && api.getTriggers(graphId).then(setInfo).catch((e) => setError(String(e)));
+  // after "Connect Telegram" the bind happens on the phone; poll until the API says linked (max 2 min)
+  useEffect(() => {
+    if (!waiting || !graphId) return;
+    let ticks = 0;
+    const id = setInterval(async () => {
+      ticks += 1;
+      try {
+        const t = await api.getTriggers(graphId);
+        setInfo(t);
+        if (t.telegram.linked || ticks > 40) setWaiting(false);
+      } catch {}
+    }, 3000);
+    return () => clearInterval(id);
+  }, [waiting, graphId]);
+  const startWaiting = () => setWaiting(true);
+  const unlink = async () => {
+    if (!graphId) return;
+    await api.unlinkTelegram(graphId).catch(() => {});
+    setWaiting(false);
+    reload();
+  };
 
   useEffect(() => {
     if (!graphId) return;
@@ -109,23 +133,28 @@ export function Triggers() {
           <Send size={11} /> telegram · answer human gates from your phone
         </div>
         {info && (
-          <div className={`rounded-md border px-2 py-1.5 ${info.telegram.enabled ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100" : "border-edge bg-panel-2 text-muted"}`}>
-            <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${info.telegram.enabled ? "bg-emerald-400" : "bg-zinc-500"}`} />
-            {info.telegram.enabled ? "connected" : "not connected"}
+          <div className={`rounded-md border px-2 py-1.5 ${info.telegram.linked ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100" : "border-edge bg-panel-2 text-muted"}`}>
+            <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${info.telegram.linked ? "bg-emerald-400" : info.telegram.bot ? "bg-amber-400" : "bg-zinc-500"}`} />
+            {info.telegram.linked ? "connected to your Telegram" : info.telegram.bot ? (waiting ? "waiting for you to press Start…" : "not connected") : "no bot on this server"}
             <div className="mt-1 text-[10.5px] opacity-80">{info.telegram.hint}</div>
+            <div className="mt-2 flex items-center gap-2">
+              {info.telegram.linked ? (
+                <button onClick={unlink} className="btn btn-sm btn-quiet">Disconnect</button>
+              ) : info.telegram.connect_url ? (
+                <a href={info.telegram.connect_url} target="_blank" rel="noreferrer" onClick={startWaiting} className="btn btn-sm btn-primary">
+                  <Send size={11} strokeWidth={2.5} /> Connect Telegram
+                </a>
+              ) : null}
+              {waiting && !info.telegram.linked && <span className="text-muted">press <span className="font-mono text-fg">Start</span> in the bot, this updates by itself</span>}
+            </div>
           </div>
         )}
-        <ol className="mt-2 list-decimal space-y-1 pl-4 text-muted">
-          <li>Create a bot with @BotFather and copy its token.</li>
-          <li>Set <span className="font-mono text-fg">TELEGRAM_BOT_TOKEN</span>, <span className="font-mono text-fg">WEBHOOK_SECRET</span> and <span className="font-mono text-fg">PUBLIC_API_URL</span> on the API.</li>
-          <li>Send <span className="font-mono text-fg">/start</span> to the bot, it replies with your chat id. Set <span className="font-mono text-fg">TELEGRAM_CHAT_ID</span>.</li>
-        </ol>
         <p className="mt-2 text-muted">
           {hasHuman
             ? "This graph has a Human step. When a run pauses there, the question and the draft arrive as a Telegram message with answer buttons. Pressing one resumes the run; the Studio tab updates live."
             : "This graph has no Human step yet, so there is nothing to approve. Add one from the palette to pause runs for a decision."}
         </p>
-        <p className="mt-2 text-muted">Tools <span className="font-mono text-fg">telegram_send</span> and <span className="font-mono text-fg">http_post</span> let a graph push its result out, so the whole loop can run without the browser.</p>
+        <p className="mt-2 text-muted">Each graph connects its own chat, so approvals only ever reach the person who connected it. Tools <span className="font-mono text-fg">telegram_send</span> and <span className="font-mono text-fg">http_post</span> let a graph push its result out, so the whole loop can run without the browser.</p>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
-"""Telegram approvals: a run paused at a human node is sent to a chat with answer buttons, and
-the button press resumes it. Everything here is best-effort and never breaks a run."""
+"""Telegram approvals. One bot serves the deployment; every graph binds its own chat through the
+bot's /start link, so a paused run goes only to the person who connected that graph. Everything
+here is best-effort and never breaks a run."""
 
 from __future__ import annotations
 
@@ -18,10 +19,12 @@ from app.settings import settings
 
 log = logging.getLogger(__name__)
 API = "https://api.telegram.org/bot{token}/{method}"
+_username: str | None = None  # bot username, learned from getMe on boot
 
 
 def enabled() -> bool:
-    return bool(settings.telegram_bot_token and settings.telegram_chat_id)
+    """A bot is configured for this deployment (chats are bound per graph)."""
+    return bool(settings.telegram_bot_token and settings.webhook_secret)
 
 
 def sign(scope: str) -> str:
@@ -52,6 +55,49 @@ async def call(method: str, **payload: Any) -> dict | None:
         return None
 
 
+# ---- linking a graph to a chat ---------------------------------------------------------------
+
+
+def link_param(graph_id: uuid.UUID) -> str:
+    """Payload for t.me/<bot>?start=<param>: graph id plus a signature so it cannot be guessed."""
+    return graph_id.hex + sign(f"tg:{graph_id}")[:16]
+
+
+def parse_link(param: str) -> uuid.UUID | None:
+    param = (param or "").strip()
+    if len(param) != 48:
+        return None
+    try:
+        graph_id = uuid.UUID(hex=param[:32])
+    except ValueError:
+        return None
+    if not hmac.compare_digest(sign(f"tg:{graph_id}")[:16], param[32:]):
+        return None
+    return graph_id
+
+
+def connect_url(graph_id: uuid.UUID) -> str | None:
+    if not (enabled() and _username):
+        return None
+    return f"https://t.me/{_username}?start={link_param(graph_id)}"
+
+
+async def ensure_bot() -> None:
+    """Learn the bot's username and point its webhook at this API (idempotent, best-effort)."""
+    global _username
+    if not enabled():
+        return
+    me = await call("getMe")
+    if me and me.get("ok"):
+        _username = me["result"].get("username")
+    if settings.public_api_url:
+        url = f"{settings.public_api_url.rstrip('/')}/hooks/telegram/{sign('telegram')}"
+        await call("setWebhook", url=url, allowed_updates=["message", "callback_query"])
+
+
+# ---- messages ------------------------------------------------------------------------------------
+
+
 def quick_answers(question: str) -> list[str]:
     """'Approve? (yes/no)' -> ['yes', 'no']; anything else -> ['yes', 'no'] as a sane default."""
     m = re.search(r"\(([^()]{1,40})\)", question or "")
@@ -71,7 +117,9 @@ def _esc(s: str) -> str:
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def build_message(run_id: uuid.UUID, graph_id: uuid.UUID, graph_name: str, intr: dict) -> dict:
+def build_message(
+    chat_id: str, run_id: uuid.UUID, graph_id: uuid.UUID, graph_name: str, intr: dict
+) -> dict:
     question = str(intr.get("question") or "Approve?")
     show = intr.get("show") or {}
     lines = [f"<b>{_esc(graph_name)}</b> is waiting for you", "", _esc(question)]
@@ -85,18 +133,22 @@ def build_message(run_id: uuid.UUID, graph_id: uuid.UUID, graph_name: str, intr:
             [{"text": "Open in Studio", "url": f"{web_url()}/graphs/{graph_id}?run={run_id}"}]
         )
     return {
-        "chat_id": settings.telegram_chat_id,
+        "chat_id": chat_id,
         "text": "\n".join(lines)[:4000],
         "parse_mode": "HTML",
         "reply_markup": {"inline_keyboard": keyboard},
     }
 
 
-def notify_paused(run_id: uuid.UUID, graph_id: uuid.UUID, graph_name: str, intr: dict) -> None:
+def notify_paused(
+    chat_id: str | None, run_id: uuid.UUID, graph_id: uuid.UUID, graph_name: str, intr: dict
+) -> None:
     """Fire-and-forget from the executor: never awaited on the run's critical path."""
-    if not enabled():
+    if not (enabled() and chat_id):
         return
-    asyncio.create_task(call("sendMessage", **build_message(run_id, graph_id, graph_name, intr)))
+    asyncio.create_task(
+        call("sendMessage", **build_message(chat_id, run_id, graph_id, graph_name, intr))
+    )
 
 
 def parse_callback(data: str) -> tuple[uuid.UUID, str] | None:
@@ -107,11 +159,3 @@ def parse_callback(data: str) -> tuple[uuid.UUID, str] | None:
         return uuid.UUID(rid), answer
     except Exception:  # noqa: BLE001
         return None
-
-
-async def ensure_webhook() -> None:
-    """Point the bot at this API (idempotent). Needs the token, the secret and a public URL."""
-    if not (settings.telegram_bot_token and settings.webhook_secret and settings.public_api_url):
-        return
-    url = f"{settings.public_api_url.rstrip('/')}/hooks/telegram/{sign('telegram')}"
-    await call("setWebhook", url=url, allowed_updates=["message", "callback_query"])

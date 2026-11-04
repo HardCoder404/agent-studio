@@ -31,11 +31,11 @@ Repository → Settings → Variables → `DEMO_API_URL=https://<render-url>`. T
 Webhooks need `WEBHOOK_SECRET` (any long random string; the blueprint generates one). Each graph's
 Triggers tab then shows its signed URL.
 
-For approvals from a phone: create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN` and
+For approvals from a phone: create one bot with @BotFather, set `TELEGRAM_BOT_TOKEN` and
 `PUBLIC_API_URL=https://<render-url>` on the API and redeploy (the API registers the Telegram
-webhook on boot). Send `/start` to the bot: it replies with your chat id, which goes into
-`TELEGRAM_CHAT_ID`. From then on a run paused at a human node arrives as a message with
-Yes/No buttons, and the button resumes it.
+webhook on boot). Every user then connects their own chat from a graph's Triggers tab
+("Connect Telegram" opens the bot with a signed start link). From then on that graph's runs
+paused at a human node arrive in that chat with Yes/No buttons, and the button resumes them.
 
 ## Local full stack
 ```bash

@@ -26,9 +26,8 @@ class Settings(BaseSettings):
     webhook_secret: str = ""
     # Where this API is reachable from the internet (used to register the Telegram webhook).
     public_api_url: str = ""
-    # Telegram approvals: a paused run is sent to this chat with Yes/No buttons.
+    # Telegram approvals: one bot for the deployment; each graph binds its own chat via /start.
     telegram_bot_token: str = ""
-    telegram_chat_id: str = ""
 
 
 settings = Settings()

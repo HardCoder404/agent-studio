@@ -14,7 +14,7 @@ from app.settings import settings
 async def lifespan(_: FastAPI):
     await checkpointer.open_postgres(settings.database_url)
     await mcp.connect_all_enabled()
-    await telegram.ensure_webhook()
+    await telegram.ensure_bot()
     yield
     await mcp_manager.close()
     await checkpointer.close()

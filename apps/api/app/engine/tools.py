@@ -84,16 +84,23 @@ async def http_post(
 
 @register(
     "telegram_send",
-    "Send `text` to your Telegram chat (needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)",
+    "Send `text` to the Telegram chat connected to this graph (Triggers tab)",
 )
 async def telegram_send(text: str, chat_id: str = "") -> str:
+    from app.db.tables import Graph
+    from app.engine import executor
+    from app.engine.context import current_graph_id
     from app.integrations import telegram
-    from app.settings import settings
 
-    target = str(chat_id or settings.telegram_chat_id)
-    if not (settings.telegram_bot_token and target):
+    target = str(chat_id or "")
+    if not target and (gid := current_graph_id.get()):
+        async with executor.SessionLocal() as db:
+            graph = await db.get(Graph, gid)
+            target = (graph.telegram_chat_id if graph else None) or ""
+    if not (telegram.enabled() and target):
         raise RuntimeError(
-            "telegram is not configured: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID"
+            "telegram is not connected for this graph: open the Triggers tab and press "
+            "Connect Telegram"
         )
     res = await telegram.call("sendMessage", chat_id=target, text=str(text)[:4000])
     if not res or not res.get("ok"):

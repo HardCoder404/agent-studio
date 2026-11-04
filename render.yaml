@@ -25,9 +25,7 @@ services:
       - key: PUBLIC_API_URL
         sync: false          # this service's https URL, used to register the Telegram webhook
       - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: TELEGRAM_CHAT_ID
-        sync: false
+        sync: false          # one bot for the deployment; each graph connects its own chat
       - key: CORS_ORIGINS
         value: https://agent-studio-rouge-eta.vercel.app
       - key: CODE_SANDBOX

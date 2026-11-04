@@ -10,10 +10,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import SessionLocal
-from app.db.tables import Run, RunEvent
+from app.db.tables import Graph, Run, RunEvent
 from app.engine import bus
 from app.engine.checkpointer import get_checkpointer
 from app.engine.compiler import compile_graph
+from app.engine.context import current_graph_id
 from app.integrations import telegram
 from app.observability import langfuse_export
 from app.schemas.graph import GraphSpec
@@ -91,6 +92,7 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any = None) 
         if run is None:
             return
         sink = EventSink(db, run_id)
+        current_graph_id.set(run.graph_id)  # lets tools find the graph (telegram_send)
         await sink.start()
         graph = compile_graph(spec, get_checkpointer())
         # Reads use the thread; the stream starts from this run's head so sibling forks on the
@@ -149,7 +151,14 @@ async def execute(run_id: uuid.UUID, spec: GraphSpec, resume_value: Any = None) 
                         await sink.emit("interrupt", intr.get("node"), **intr)
                         await db.commit()
                         bus.publish(run_id, {"seq": None, "type": "status", "status": "paused"})
-                        telegram.notify_paused(run_id, spec.id, spec.name, intr)
+                        owner = await db.get(Graph, run.graph_id)
+                        telegram.notify_paused(
+                            owner.telegram_chat_id if owner else None,
+                            run_id,
+                            spec.id,
+                            spec.name,
+                            intr,
+                        )
                         return
                     # one checkpoint per completed node: the handle time-travel will use later
                     state = await graph.aget_state(config)

@@ -268,5 +268,5 @@ export type TemplateInfo = { id: string; name: string; description: string; node
 /** GET /graphs/{id}/triggers: ways to start or continue a graph without the UI. */
 export type TriggersInfo = {
   webhook: { enabled: boolean; url: string | null; method: "POST"; hint: string };
-  telegram: { enabled: boolean; hint: string };
+  telegram: { bot: boolean; linked: boolean; connect_url: string | null; hint: string };
 };

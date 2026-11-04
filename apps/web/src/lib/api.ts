@@ -73,4 +73,5 @@ export const api = {
   cancelRun: (id: string) => request<RunInfo>(`/runs/${id}/cancel`, { method: "POST" }),
   listTools: () => request<ToolInfo[]>("/tools"),
   getTriggers: (graphId: string) => request<TriggersInfo>(`/graphs/${graphId}/triggers`),
+  unlinkTelegram: (graphId: string) => request<void>(`/graphs/${graphId}/telegram`, { method: "DELETE" }),
 };
